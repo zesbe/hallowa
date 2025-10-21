@@ -3,9 +3,13 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Shield, User, Mail, Calendar } from "lucide-react";
+import { Shield, User, Mail, Calendar, Plus, Edit, Trash2 } from "lucide-react";
+import { z } from "zod";
 import {
   Table,
   TableBody,
@@ -35,9 +39,27 @@ interface UserData {
   } | null;
 }
 
+const userSchema = z.object({
+  email: z.string().email("Email tidak valid").trim(),
+  password: z.string().min(6, "Password minimal 6 karakter").optional(),
+  full_name: z.string().min(1, "Nama harus diisi").trim(),
+  role: z.enum(["user", "admin"]),
+});
+
+type UserFormData = z.infer<typeof userSchema>;
+
 export const AdminUsers = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [formData, setFormData] = useState<UserFormData>({
+    email: "",
+    password: "",
+    full_name: "",
+    role: "user",
+  });
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
 
   useEffect(() => {
     fetchUsers();
@@ -103,31 +125,206 @@ export const AdminUsers = () => {
     }
   };
 
-  const toggleRole = async (userId: string, currentRole: string) => {
-    try {
-      const newRole = currentRole === "admin" ? "user" : "admin";
-      
-      await supabase
-        .from("user_roles")
-        .update({ role: newRole })
-        .eq("user_id", userId);
+  const callAdminFunction = async (action: string, payload: any) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
 
-      toast.success(`Role berhasil diubah menjadi ${newRole}`);
+    const response = await fetch(
+      `https://ierdfxgeectqoekugyvb.supabase.co/functions/v1/admin-user-management`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action, ...payload }),
+      }
+    );
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Operation failed");
+    return result;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormErrors({});
+
+    try {
+      // Validate form
+      const validatedData = userSchema.parse(formData);
+
+      if (editingUser) {
+        // Update user
+        await callAdminFunction("update", {
+          user_id: editingUser.id,
+          email: validatedData.email,
+          full_name: validatedData.full_name,
+          role: validatedData.role,
+        });
+        toast.success("User berhasil diupdate");
+      } else {
+        // Create user
+        if (!validatedData.password) {
+          setFormErrors({ password: "Password harus diisi" });
+          return;
+        }
+        await callAdminFunction("create", validatedData);
+        toast.success("User berhasil dibuat");
+      }
+
+      setDialogOpen(false);
+      resetForm();
       fetchUsers();
     } catch (error) {
-      console.error("Error updating role:", error);
-      toast.error("Gagal mengubah role");
+      if (error instanceof z.ZodError) {
+        const errors: Partial<Record<keyof UserFormData, string>> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0] as keyof UserFormData] = err.message;
+          }
+        });
+        setFormErrors(errors);
+      } else {
+        toast.error(error instanceof Error ? error.message : "Gagal menyimpan user");
+      }
     }
+  };
+
+  const handleEdit = (user: UserData) => {
+    setEditingUser(user);
+    setFormData({
+      email: user.email,
+      password: "",
+      full_name: user.full_name || "",
+      role: user.role as "user" | "admin",
+    });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (!confirm("Yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan.")) {
+      return;
+    }
+
+    try {
+      await callAdminFunction("delete", { user_id: userId });
+      toast.success("User berhasil dihapus");
+      fetchUsers();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus user");
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      email: "",
+      password: "",
+      full_name: "",
+      role: "user",
+    });
+    setFormErrors({});
+    setEditingUser(null);
   };
 
   return (
     <AdminLayout>
       <div className="space-y-6 p-4 sm:p-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Kelola User</h1>
-          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Manage users dan permissions
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Kelola User</h1>
+            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
+              Manage users dan permissions
+            </p>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="w-full sm:w-auto">
+                <Plus className="w-4 h-4 mr-2" />
+                Tambah User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingUser ? "Edit User" : "Tambah User Baru"}</DialogTitle>
+                <DialogDescription>
+                  {editingUser ? "Update informasi user" : "Buat akun user baru"}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Nama Lengkap</Label>
+                  <Input
+                    id="full_name"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    placeholder="John Doe"
+                  />
+                  {formErrors.full_name && (
+                    <p className="text-sm text-destructive">{formErrors.full_name}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="user@example.com"
+                  />
+                  {formErrors.email && (
+                    <p className="text-sm text-destructive">{formErrors.email}</p>
+                  )}
+                </div>
+
+                {!editingUser && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Min. 6 karakter"
+                    />
+                    {formErrors.password && (
+                      <p className="text-sm text-destructive">{formErrors.password}</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value: "user" | "admin") => setFormData({ ...formData, role: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">
+                    Batal
+                  </Button>
+                  <Button type="submit" className="flex-1">
+                    {editingUser ? "Update" : "Buat User"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card>
@@ -178,18 +375,9 @@ export const AdminUsers = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Select
-                            value={user.role}
-                            onValueChange={(value) => toggleRole(user.id, user.role)}
-                          >
-                            <SelectTrigger className="w-[100px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Badge variant={user.role === "admin" ? "default" : "secondary"}>
+                            {user.role}
+                          </Badge>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           {user.subscription ? (
@@ -220,14 +408,22 @@ export const AdminUsers = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleRole(user.id, user.role)}
-                            className="whitespace-nowrap"
-                          >
-                            {user.role === "admin" ? "Set User" : "Set Admin"}
-                          </Button>
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(user)}
+                            >
+                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(user.id)}
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
