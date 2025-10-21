@@ -66,7 +66,11 @@ export const useAuth = () => {
     await supabase.auth.signOut();
     setUser(null);
     setRole(null);
-    navigate("/auth");
+    // Clear all storage
+    localStorage.clear();
+    sessionStorage.clear();
+    // Force reload to ensure clean state
+    window.location.href = "/auth";
   };
 
   return { user, role, loading, signOut };

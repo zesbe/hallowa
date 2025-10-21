@@ -12,8 +12,12 @@ export default function Settings() {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      navigate("/auth");
+      // Clear all local storage
+      localStorage.clear();
+      sessionStorage.clear();
       toast.success("Berhasil logout");
+      // Force reload to ensure clean state
+      window.location.href = "/auth";
     } catch (error) {
       toast.error("Gagal logout");
     }

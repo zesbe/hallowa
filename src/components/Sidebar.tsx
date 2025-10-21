@@ -170,7 +170,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
       {/* Logout */}
       <div className="p-4 border-t border-sidebar-border">
         <Link
-          to="/logout"
+          to="/settings"
           className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
         >
           <LogOut className="w-5 h-5" />
