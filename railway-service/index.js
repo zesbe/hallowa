@@ -8,6 +8,7 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLat
 const { createClient } = require('@supabase/supabase-js');
 const qrcode = require('qrcode-terminal');
 const QRCode = require('qrcode');
+const os = require('os');
 
 // Supabase config dari environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -166,12 +167,13 @@ async function connectWhatsApp(device) {
           // Update database
           const { error } = await supabase
             .from('devices')
-            .update({
-              status: 'connected',
-              phone_number: phoneNumber,
-              last_connected_at: new Date().toISOString(),
-              qr_code: null
-            })
+          .update({
+            status: 'connected',
+            phone_number: phoneNumber,
+            last_connected_at: new Date().toISOString(),
+            qr_code: null,
+            server_id: process.env.RAILWAY_STATIC_URL || os.hostname()
+          })
             .eq('id', device.id);
 
           if (error) {
@@ -180,8 +182,8 @@ async function connectWhatsApp(device) {
             console.log('✅ Device status updated to connected');
           }
 
-          // Save session data
-          const sessionData = JSON.stringify(state);
+          // Save session presence flag (we store files on disk; DB just has a marker)
+          const sessionData = { has_session: true, saved_at: new Date().toISOString() };
           await supabase
             .from('devices')
             .update({ session_data: sessionData })
