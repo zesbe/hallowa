@@ -6,10 +6,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Smartphone, QrCode, Trash2, RefreshCw, Copy, LogOut, Info, RotateCcw, Database } from "lucide-react";
+import { Plus, Smartphone, QrCode, Trash2, RefreshCw, Copy, LogOut, Info, RotateCcw, Database, Bell, BellOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSwipeable } from "react-swipeable";
+import { 
+  requestNotificationPermission, 
+  notifyDeviceConnected, 
+  notifyDeviceDisconnected,
+  notifyDeviceError 
+} from "@/utils/notifications";
 
 interface Device {
   id: string;
@@ -35,6 +42,15 @@ export const Devices = () => {
   const [connectionStatus, setConnectionStatus] = useState<string>("idle");
   const [qrExpiry, setQrExpiry] = useState<number>(0);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [swipedDeviceId, setSwipedDeviceId] = useState<string | null>(null);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission().then(granted => {
+      setNotificationsEnabled(granted);
+    });
+  }, []);
 
   useEffect(() => {
     fetchDevices();
@@ -52,6 +68,23 @@ export const Devices = () => {
         (payload) => {
           console.log('Device update:', payload);
           fetchDevices();
+          
+          // Send notifications for device status changes
+          if (payload.eventType === 'UPDATE' && notificationsEnabled) {
+            const oldStatus = payload.old?.status;
+            const newStatus = payload.new?.status;
+            const deviceName = payload.new?.device_name;
+            
+            if (oldStatus !== newStatus && deviceName) {
+              if (newStatus === 'connected') {
+                notifyDeviceConnected(deviceName);
+              } else if (newStatus === 'disconnected' && oldStatus === 'connected') {
+                notifyDeviceDisconnected(deviceName);
+              } else if (newStatus === 'error') {
+                notifyDeviceError(deviceName);
+              }
+            }
+          }
           
           // Auto-close dialog when connected
           if (payload.eventType === 'UPDATE' && payload.new?.status === 'connected') {
@@ -355,35 +388,53 @@ export const Devices = () => {
               Kelola semua perangkat WhatsApp yang terhubung
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-primary to-secondary text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Tambah Device
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Tambah Device Baru</DialogTitle>
-                <DialogDescription>
-                  Buat device baru untuk menghubungkan WhatsApp Anda
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateDevice} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="deviceName">Nama Device</Label>
-                  <Input
-                    id="deviceName"
-                    value={deviceName}
-                    onChange={(e) => setDeviceName(e.target.value)}
-                    placeholder="Contoh: WhatsApp Bisnis 1"
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full">Buat Device</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Button
+              variant={notificationsEnabled ? "default" : "outline"}
+              size="icon"
+              onClick={async () => {
+                const granted = await requestNotificationPermission();
+                setNotificationsEnabled(granted);
+                if (granted) {
+                  toast.success("Notifikasi diaktifkan");
+                } else {
+                  toast.error("Notifikasi ditolak");
+                }
+              }}
+              title={notificationsEnabled ? "Notifikasi aktif" : "Aktifkan notifikasi"}
+            >
+              {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-primary to-secondary text-white">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Tambah Device
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Tambah Device Baru</DialogTitle>
+                  <DialogDescription>
+                    Buat device baru untuk menghubungkan WhatsApp Anda
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateDevice} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="deviceName">Nama Device</Label>
+                    <Input
+                      id="deviceName"
+                      value={deviceName}
+                      onChange={(e) => setDeviceName(e.target.value)}
+                      placeholder="Contoh: WhatsApp Bisnis 1"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full">Buat Device</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {loading ? (
