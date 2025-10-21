@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Calendar, Clock, Send, XCircle, Edit, Trash2, CheckCircle2, Image as ImageIcon, Users, X, Upload, Loader2, Info, Zap, Globe } from "lucide-react";
+import { Plus, Calendar, Clock, Send, XCircle, Edit, Trash2, CheckCircle2, Image as ImageIcon, Users, X, Upload, Loader2, Info, Zap, Globe, Eye } from "lucide-react";
 import { BroadcastSafetyWarning } from "@/components/BroadcastSafetyWarning";
+import { WhatsAppPreview } from "@/components/WhatsAppPreview";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { 
@@ -432,26 +433,34 @@ export default function Scheduled() {
     }
   };
 
-  const BroadcastCard = ({ broadcast, showActions = true }: { broadcast: Broadcast; showActions?: boolean }) => (
-    <Card key={broadcast.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {
+  const BroadcastCard = ({ broadcast, showActions = true }: { broadcast: Broadcast; showActions?: boolean }) => {
+    const handleCardClick = (e: React.MouseEvent) => {
+      // Don't open detail dialog if clicking on action buttons
+      if ((e.target as HTMLElement).closest('button')) {
+        return;
+      }
       setSelectedBroadcast(broadcast);
       setDetailDialogOpen(true);
-    }}>
-      <CardHeader className="pb-3 md:pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg md:text-lg mb-2 truncate">{broadcast.name}</CardTitle>
+    };
+
+    return (
+      <Card 
+        key={broadcast.id} 
+        className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+        onClick={handleCardClick}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg font-bold mb-2 truncate">{broadcast.name}</CardTitle>
             <div className="flex flex-wrap gap-2">
               <Badge className={getStatusColor(broadcast.status)} variant="default">
                 {getStatusText(broadcast.status)}
               </Badge>
               {broadcast.scheduled_at && (
-                <Badge variant="outline" className="text-xs">
-                  <Clock className="w-3 h-3 mr-1" />
-                  <span className="hidden sm:inline">{formatDateTime(broadcast.scheduled_at)}</span>
-                  <span className="sm:hidden">
-                    {formatUTCToLocalDisplay(broadcast.scheduled_at, userTimezone, 'dd MMM HH:mm')}
-                  </span>
+                <Badge variant="outline" className="text-xs flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  <span>{formatUTCToLocalDisplay(broadcast.scheduled_at, userTimezone, 'dd MMM HH:mm')}</span>
                 </Badge>
               )}
             </div>
@@ -466,9 +475,9 @@ export default function Scheduled() {
                   handleEditSchedule(broadcast);
                 }}
                 disabled={actionLoading === broadcast.id}
-                className="h-10 w-10 md:h-9 md:w-9"
+                className="h-9 w-9"
               >
-                <Edit className="w-5 h-5 md:w-4 md:h-4" />
+                <Edit className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -478,16 +487,19 @@ export default function Scheduled() {
                   confirmDelete(broadcast);
                 }}
                 disabled={actionLoading === broadcast.id}
-                className="h-10 w-10 md:h-9 md:w-9"
+                className="h-9 w-9"
               >
-                <Trash2 className="w-5 h-5 md:w-4 md:h-4" />
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <CardDescription className="line-clamp-2 text-base md:text-sm">{broadcast.message}</CardDescription>
+        {/* Message Preview */}
+        <div className="bg-muted/50 rounded-lg p-3 border">
+          <p className="text-sm line-clamp-2 text-foreground">{broadcast.message}</p>
+        </div>
         
         <div className="flex flex-wrap gap-2">
           {broadcast.media_url && (
@@ -519,7 +531,7 @@ export default function Scheduled() {
           <div className="flex flex-col sm:flex-row gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
             <Button
               size="default"
-              className="flex-1 h-11 md:h-9 text-base md:text-sm"
+              className="flex-1 h-11 text-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 handleSendNow(broadcast.id);
@@ -532,7 +544,7 @@ export default function Scheduled() {
             <Button
               size="default"
               variant="outline"
-              className="h-11 md:h-9 text-base md:text-sm sm:w-auto"
+              className="h-11 text-sm sm:w-auto"
               onClick={(e) => {
                 e.stopPropagation();
                 handleCancelSchedule(broadcast.id);
@@ -546,6 +558,7 @@ export default function Scheduled() {
       </CardContent>
     </Card>
   );
+};
 
   if (loading) {
     return (
@@ -563,34 +576,34 @@ export default function Scheduled() {
   return (
     <Layout>
       <div className="space-y-4 md:space-y-8">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-1 md:mb-2">Jadwal Broadcast</h1>
-              <p className="text-sm md:text-base text-muted-foreground">
-                Buat dan kelola broadcast terjadwal
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-muted-foreground" />
-              <Select value={userTimezone} onValueChange={handleTimezoneChange}>
-                <SelectTrigger className="h-9 w-[180px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value} className="text-xs">
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-1">Jadwal Broadcast</h1>
+            <p className="text-sm text-muted-foreground">
+              Buat dan kelola broadcast terjadwal
+            </p>
           </div>
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-muted-foreground" />
+            <Select value={userTimezone} onValueChange={handleTimezoneChange}>
+              <SelectTrigger className="h-9 w-full sm:w-[200px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONES.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value} className="text-xs">
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-primary to-secondary text-white w-full md:w-auto h-12 md:h-10 text-base md:text-sm">
-                <Plus className="w-5 h-5 md:w-4 md:h-4 mr-2" />
+              <Button className="bg-gradient-to-r from-primary to-secondary text-white w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all">
+                <Plus className="w-5 h-5 mr-2" />
                 Buat Broadcast Terjadwal
               </Button>
             </DialogTrigger>
@@ -915,6 +928,21 @@ export default function Scheduled() {
                       />
                     )}
                   </div>
+
+                  {/* WhatsApp Preview */}
+                  {formData.message && (
+                    <div className="space-y-2">
+                      <Label className="text-base md:text-sm flex items-center gap-2">
+                        <Eye className="w-4 h-4" />
+                        Preview Pesan
+                      </Label>
+                      <WhatsAppPreview
+                        message={formData.message}
+                        hasMedia={!!formData.media_url}
+                        mediaUrl={formData.media_url}
+                      />
+                    </div>
+                  )}
                   </div>
                 </ScrollArea>
                 <div className="sticky bottom-0 bg-background border-t p-4 md:p-6 shadow-lg">
@@ -929,16 +957,14 @@ export default function Scheduled() {
         </div>
 
         <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-12 md:h-10">
-            <TabsTrigger value="upcoming" className="text-base md:text-sm">
-              <Calendar className="w-5 h-5 md:w-4 md:h-4 mr-2" />
-              <span className="hidden sm:inline">Akan Datang</span>
-              <span className="sm:hidden">Jadwal</span>
-              <span className="ml-1">({upcomingBroadcasts.length})</span>
+          <TabsList className="grid w-full grid-cols-2 h-11 mb-4">
+            <TabsTrigger value="upcoming" className="text-sm font-medium">
+              <Calendar className="w-4 h-4 mr-2" />
+              Jadwal ({upcomingBroadcasts.length})
             </TabsTrigger>
-            <TabsTrigger value="past" className="text-base md:text-sm">
-              <CheckCircle2 className="w-5 h-5 md:w-4 md:h-4 mr-2" />
-              <span>Riwayat ({pastBroadcasts.length})</span>
+            <TabsTrigger value="past" className="text-sm font-medium">
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Riwayat ({pastBroadcasts.length})
             </TabsTrigger>
           </TabsList>
 
