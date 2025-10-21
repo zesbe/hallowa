@@ -58,11 +58,11 @@ async function startService() {
         return;
       }
 
-      // Connect devices with 'connecting' status
-      const connectingDevices = devices?.filter(d => d.status === 'connecting') || [];
-      for (const device of connectingDevices) {
+      // Ensure sockets for devices that should be online
+      const needSockets = devices?.filter(d => ['connecting', 'connected'].includes(d.status)) || [];
+      for (const device of needSockets) {
         if (!activeSockets.has(device.id)) {
-          console.log(`🔄 Starting connection for device: ${device.device_name}`);
+          console.log(`🔄 (re)connecting device: ${device.device_name} [status=${device.status}]`);
           await connectWhatsApp(device);
         }
       }
@@ -353,15 +353,23 @@ async function processBroadcasts() {
         const sock = activeSockets.get(broadcast.device_id);
         
         if (!sock) {
-          console.error(`❌ No active socket for device: ${broadcast.device_id}`);
-          // Update broadcast status to failed
-          await supabase
-            .from('broadcasts')
-            .update({ 
-              status: 'failed',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', broadcast.id);
+          console.error(`❌ No active socket for device: ${broadcast.device_id} — scheduling reconnect`);
+          // Try to reconnect the device and keep the broadcast in processing
+          const { data: device } = await supabase
+            .from('devices')
+            .select('*')
+            .eq('id', broadcast.device_id)
+            .maybeSingle();
+
+          if (device && !activeSockets.has(device.id)) {
+            try {
+              await supabase.from('devices').update({ status: 'connecting' }).eq('id', device.id);
+              connectWhatsApp(device).catch(() => {});
+            } catch (e) {
+              console.error('❌ Error scheduling reconnect:', e);
+            }
+          }
+          // Skip for now; will retry on next processing tick
           continue;
         }
 
