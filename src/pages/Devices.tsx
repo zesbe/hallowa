@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Smartphone, QrCode, Trash2, RefreshCw, Copy, LogOut, Info, RotateCcw } from "lucide-react";
+import { Plus, Smartphone, QrCode, Trash2, RefreshCw, Copy, LogOut, Info, RotateCcw, Database } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -193,6 +193,31 @@ export const Devices = () => {
       }
       // Reconnect
       handleConnectDevice(selectedDevice);
+    }
+  };
+
+  const handleClearSession = async (device: Device) => {
+    if (!confirm("Yakin ingin menghapus session data? Device akan disconnect.")) return;
+
+    try {
+      // Send clear session via WebSocket if connected
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'clear_session' }));
+      }
+      
+      await supabase
+        .from("devices")
+        .update({ 
+          session_data: null,
+          qr_code: null,
+          status: "disconnected"
+        })
+        .eq("id", device.id);
+
+      toast.success("Session data berhasil dihapus");
+      fetchDevices();
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
@@ -438,6 +463,15 @@ export const Devices = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  onClick={() => handleClearSession(device)}
+                                  className="border-purple-500 text-purple-500 hover:bg-purple-50 h-8 w-8 p-0"
+                                  title="Clear Session"
+                                >
+                                  <Database className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
                                   onClick={() => handleRelog(device)}
                                   className="border-pink-500 text-pink-500 hover:bg-pink-50 h-8 w-8 p-0"
                                   title="Relog"
@@ -607,58 +641,145 @@ export const Devices = () => {
 
         {/* Detail Dialog */}
         <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Device Details</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Smartphone className="w-5 h-5" />
+                Device Details
+              </DialogTitle>
               <DialogDescription>
-                Informasi lengkap device WhatsApp
+                Informasi lengkap dan action untuk device WhatsApp
               </DialogDescription>
             </DialogHeader>
             {selectedDevice && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-6">
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
                   <div>
-                    <Label className="text-muted-foreground">Device Name</Label>
-                    <p className="font-medium">{selectedDevice.device_name}</p>
+                    <Label className="text-xs text-muted-foreground">Device Name</Label>
+                    <p className="font-medium text-sm mt-1">{selectedDevice.device_name}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Status</Label>
-                    <Badge className={getStatusColor(selectedDevice.status)}>
-                      {getStatusText(selectedDevice.status)}
-                    </Badge>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Phone Number</Label>
-                    <p className="font-medium">{selectedDevice.phone_number || '-'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Server ID</Label>
-                    <p className="font-medium">{selectedDevice.server_id || '-'}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-muted-foreground">API Key</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="text-xs bg-muted px-2 py-1 rounded flex-1">
-                        {selectedDevice.api_key}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(selectedDevice.api_key || '')}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <div className="mt-1">
+                      <Badge className={getStatusColor(selectedDevice.status)}>
+                        {getStatusText(selectedDevice.status)}
+                      </Badge>
                     </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Phone Number</Label>
+                    <p className="font-medium text-sm mt-1">{selectedDevice.phone_number || '-'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Server ID</Label>
+                    <p className="font-mono text-sm mt-1">{selectedDevice.server_id || '-'}</p>
                   </div>
                   {selectedDevice.last_connected_at && (
                     <div className="col-span-2">
-                      <Label className="text-muted-foreground">Last Connected</Label>
-                      <p className="font-medium">
-                        {new Date(selectedDevice.last_connected_at).toLocaleString()}
+                      <Label className="text-xs text-muted-foreground">Last Connected</Label>
+                      <p className="text-sm mt-1">
+                        {new Date(selectedDevice.last_connected_at).toLocaleString('id-ID', {
+                          dateStyle: 'full',
+                          timeStyle: 'short'
+                        })}
                       </p>
                     </div>
                   )}
                 </div>
+
+                {/* API Key Section */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">API Key</Label>
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <code className="text-xs font-mono flex-1 break-all">
+                      {selectedDevice.api_key}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(selectedDevice.api_key || '')}
+                      className="shrink-0"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Quick Actions</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedDevice.status === "disconnected" && (
+                      <Button
+                        onClick={() => {
+                          setDetailDialogOpen(false);
+                          handleConnectDevice(selectedDevice);
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600"
+                      >
+                        <QrCode className="w-4 h-4 mr-2" />
+                        Scan QR Code
+                      </Button>
+                    )}
+                    {selectedDevice.status === "connected" && (
+                      <>
+                        <Button
+                          onClick={() => {
+                            setDetailDialogOpen(false);
+                            handleClearSession(selectedDevice);
+                          }}
+                          variant="outline"
+                          className="border-purple-500 text-purple-500 hover:bg-purple-50"
+                        >
+                          <Database className="w-4 h-4 mr-2" />
+                          Clear Session
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setDetailDialogOpen(false);
+                            handleRelog(selectedDevice);
+                          }}
+                          variant="outline"
+                          className="border-pink-500 text-pink-500 hover:bg-pink-50"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          Reconnect
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setDetailDialogOpen(false);
+                            handleLogout(selectedDevice);
+                          }}
+                          variant="outline"
+                          className="border-blue-500 text-blue-500 hover:bg-blue-50"
+                        >
+                          <LogOut className="w-4 h-4 mr-2" />
+                          Logout
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      onClick={() => {
+                        setDetailDialogOpen(false);
+                        handleDeleteDevice(selectedDevice.id);
+                      }}
+                      variant="destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Device
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Additional Info */}
+                {selectedDevice.is_multidevice && (
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      ✓ Device ini mendukung Multi-device WhatsApp
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>

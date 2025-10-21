@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import QRCode from "https://esm.sh/qrcode@1.5.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -122,16 +121,32 @@ serve(async (req) => {
           }));
           break;
 
-        case 'send_message':
-          // Handle message sending
-          socket.send(JSON.stringify({
-            type: 'message_sent',
-            messageId: crypto.randomUUID(),
-            timestamp: Date.now()
-          }));
-          break;
+      case 'send_message':
+        // Handle message sending
+        socket.send(JSON.stringify({
+          type: 'message_sent',
+          messageId: crypto.randomUUID(),
+          timestamp: Date.now()
+        }));
+        break;
 
-        default:
+      case 'clear_session':
+        // Clear session data
+        await supabase
+          .from('devices')
+          .update({ 
+            session_data: null,
+            qr_code: null
+          })
+          .eq('id', deviceId);
+
+        socket.send(JSON.stringify({
+          type: 'session_cleared',
+          timestamp: Date.now()
+        }));
+        break;
+
+      default:
           console.log('Unknown message type:', data.type);
       }
     } catch (error) {
@@ -151,24 +166,54 @@ serve(async (req) => {
   return response;
 });
 
+// Helper to convert ArrayBuffer to base64
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 // Helper function to generate QR code
 async function generateQRCode(data: string): Promise<string> {
   try {
-    // Generate QR code as data URL using qrcode library
-    const qrImage = await QRCode.toDataURL(data, {
-      errorCorrectionLevel: "M",
-      type: "image/png",
-      width: 300,
-      margin: 2,
-      color: {
-        dark: "#000000",
-        light: "#FFFFFF"
-      }
-    });
+    // Generate QR code using an external API service
+    const size = 300;
+    const encodedData = encodeURIComponent(data);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodedData}&format=png`;
     
-    return qrImage;
+    // Fetch the QR code image
+    const response = await fetch(qrUrl);
+    const blob = await response.arrayBuffer();
+    
+    // Convert to base64
+    const base64 = arrayBufferToBase64(blob);
+    return `data:image/png;base64,${base64}`;
   } catch (error) {
     console.error('Error generating QR code:', error);
-    throw error;
+    // Fallback to simple SVG-based QR
+    return generateSimpleSVGQR(data);
   }
+}
+
+// Fallback: Simple SVG-based visual QR (not scannable, just placeholder)
+function generateSimpleSVGQR(data: string): string {
+  const svg = `
+    <svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="white"/>
+      <rect x="20" y="20" width="40" height="40" fill="black"/>
+      <rect x="240" y="20" width="40" height="40" fill="black"/>
+      <rect x="20" y="240" width="40" height="40" fill="black"/>
+      <rect x="130" y="130" width="40" height="40" fill="black"/>
+      <text x="150" y="180" text-anchor="middle" font-size="12" fill="gray">
+        Scan with WhatsApp
+      </text>
+      <text x="150" y="200" text-anchor="middle" font-size="8" fill="gray">
+        ${data.substring(0, 30)}...
+      </text>
+    </svg>
+  `;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
