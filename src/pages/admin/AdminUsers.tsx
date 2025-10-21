@@ -5,7 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Shield, User } from "lucide-react";
+import { Shield, User, Mail, Calendar } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface UserData {
   id: string;
@@ -13,6 +28,11 @@ interface UserData {
   email: string;
   role: string;
   created_at: string;
+  subscription?: {
+    plan_name: string;
+    status: string;
+    expires_at: string | null;
+  } | null;
 }
 
 export const AdminUsers = () => {
@@ -41,6 +61,20 @@ export const AdminUsers = () => {
           .eq("user_id", profile.id)
           .single();
 
+        // Fetch subscription data
+        const { data: subscriptionData } = await supabase
+          .from("user_subscriptions")
+          .select(`
+            status,
+            expires_at,
+            plan_id,
+            plans (
+              name
+            )
+          `)
+          .eq("user_id", profile.id)
+          .single();
+
         if (authData.user) {
           usersData.push({
             id: profile.id,
@@ -48,6 +82,11 @@ export const AdminUsers = () => {
             email: authData.user.email || "",
             role: roleData?.role || "user",
             created_at: profile.created_at,
+            subscription: subscriptionData ? {
+              plan_name: (subscriptionData.plans as any)?.name || "No Plan",
+              status: subscriptionData.status,
+              expires_at: subscriptionData.expires_at,
+            } : null,
           });
         }
       }
@@ -96,41 +135,97 @@ export const AdminUsers = () => {
             {loading ? (
               <p>Loading...</p>
             ) : (
-              <div className="space-y-4">
-                {users.map((user) => (
-                  <div
-                    key={user.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        user.role === "admin" ? "bg-orange-500" : "bg-blue-500"
-                      }`}>
-                        {user.role === "admin" ? (
-                          <Shield className="w-5 h-5 text-white" />
-                        ) : (
-                          <User className="w-5 h-5 text-white" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">{user.full_name || "No Name"}</p>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant={user.role === "admin" ? "destructive" : "secondary"}>
-                        {user.role}
-                      </Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toggleRole(user.id, user.role)}
-                      >
-                        {user.role === "admin" ? "Set User" : "Set Admin"}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Subscription</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Terdaftar</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              user.role === "admin" ? "bg-orange-500" : "bg-blue-500"
+                            }`}>
+                              {user.role === "admin" ? (
+                                <Shield className="w-4 h-4 text-white" />
+                              ) : (
+                                <User className="w-4 h-4 text-white" />
+                              )}
+                            </div>
+                            <span className="font-medium">{user.full_name || "No Name"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">{user.email}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={user.role}
+                            onValueChange={(value) => toggleRole(user.id, user.role)}
+                          >
+                            <SelectTrigger className="w-[120px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          {user.subscription ? (
+                            <Badge variant="outline">{user.subscription.plan_name}</Badge>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No Plan</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {user.subscription ? (
+                            <Badge
+                              variant={
+                                user.subscription.status === "active"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {user.subscription.status}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">Inactive</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(user.created_at).toLocaleDateString("id-ID")}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleRole(user.id, user.role)}
+                          >
+                            {user.role === "admin" ? "Set User" : "Set Admin"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
