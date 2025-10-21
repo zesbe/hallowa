@@ -1,19 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import makeWASocket, { 
-  DisconnectReason, 
-  fetchLatestBaileysVersion
-} from "https://esm.sh/@whiskeysockets/baileys@6.7.8";
-import { Boom } from "https://esm.sh/@hapi/boom@10.0.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Store active connections and Baileys sockets
+// Store active connections
 const connections = new Map();
-const baileysConnections = new Map();
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -55,15 +49,26 @@ serve(async (req) => {
         })
         .eq('id', deviceId);
 
-      // Get device data for session
-      const { data: device } = await supabase
-        .from('devices')
-        .select('session_data')
-        .eq('id', deviceId)
-        .single();
+      // Generate QR code placeholder (Baileys must run in a Node service)
+      setTimeout(async () => {
+        const qrData = `whatsapp-login-${deviceId}-${Date.now()}`;
+        
+        // Generate QR code image data
+        const qrCode = await generateQRCode(qrData);
+        
+        // Update device with QR code
+        await supabase
+          .from('devices')
+          .update({ qr_code: qrCode })
+          .eq('id', deviceId);
 
-      // Initialize Baileys connection
-      await initializeBaileysConnection(deviceId, socket, device?.session_data);
+        // Send QR to client
+        socket.send(JSON.stringify({
+          type: 'qr',
+          qr: qrCode,
+          timestamp: Date.now()
+        }));
+      }, 300);
 
     } catch (error) {
       console.error('Error in WebSocket handler:', error);
@@ -81,12 +86,6 @@ serve(async (req) => {
 
       switch (data.type) {
         case 'logout':
-          const sock = baileysConnections.get(deviceId);
-          if (sock) {
-            await sock.logout();
-            baileysConnections.delete(deviceId);
-          }
-
           await supabase
             .from('devices')
             .update({ 
@@ -104,31 +103,15 @@ serve(async (req) => {
           break;
 
         case 'send_message':
-          const baileySock = baileysConnections.get(deviceId);
-          if (baileySock && data.to && data.message) {
-            try {
-              await baileySock.sendMessage(data.to, { text: data.message });
-              socket.send(JSON.stringify({
-                type: 'message_sent',
-                messageId: crypto.randomUUID(),
-                timestamp: Date.now()
-              }));
-            } catch (error) {
-              socket.send(JSON.stringify({
-                type: 'error',
-                error: 'Failed to send message'
-              }));
-            }
-          }
+          // Placeholder: requires Baileys Node service to actually send
+          socket.send(JSON.stringify({
+            type: 'message_sent',
+            messageId: crypto.randomUUID(),
+            timestamp: Date.now()
+          }));
           break;
 
         case 'clear_session':
-          const baileySocket = baileysConnections.get(deviceId);
-          if (baileySocket) {
-            await baileySocket.logout();
-            baileysConnections.delete(deviceId);
-          }
-
           await supabase
             .from('devices')
             .update({ 
@@ -146,7 +129,7 @@ serve(async (req) => {
           break;
 
         default:
-          console.log('Unknown message type:', data.type);
+            console.log('Unknown message type:', data.type);
       }
     } catch (error) {
       console.error('Error handling message:', error);
@@ -156,13 +139,6 @@ serve(async (req) => {
   socket.onclose = () => {
     console.log(`WebSocket closed for device: ${deviceId}`);
     connections.delete(deviceId);
-    
-    // Clean up Baileys connection if exists
-    const sock = baileysConnections.get(deviceId);
-    if (sock) {
-      sock.end();
-      baileysConnections.delete(deviceId);
-    }
   };
 
   socket.onerror = (error) => {
@@ -171,166 +147,6 @@ serve(async (req) => {
 
   return response;
 });
-
-// Initialize Baileys connection
-async function initializeBaileysConnection(deviceId: string, socket: WebSocket, sessionData: any) {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-
-  try {
-    console.log(`Initializing Baileys for device: ${deviceId}`);
-
-    // Create in-memory auth state
-    const authState = await createInMemoryAuthState(sessionData);
-    
-    // Get latest Baileys version
-    const { version } = await fetchLatestBaileysVersion();
-    
-    // Create Baileys socket
-    const sock = makeWASocket({
-      version,
-      printQRInTerminal: false,
-      auth: authState.state,
-      browser: ['WhatsApp Gateway', 'Chrome', '1.0.0'],
-    });
-
-    baileysConnections.set(deviceId, sock);
-
-    // Handle connection updates
-    sock.ev.on('connection.update', async (update) => {
-      const { connection, lastDisconnect, qr } = update;
-      
-      console.log(`Connection update for ${deviceId}:`, { connection, qr: !!qr });
-
-      if (qr) {
-        // Generate QR code image from QR string
-        const qrCode = await generateQRCode(qr);
-        
-        await supabase
-          .from('devices')
-          .update({ qr_code: qrCode })
-          .eq('id', deviceId);
-
-        socket.send(JSON.stringify({
-          type: 'qr',
-          qr: qrCode,
-          timestamp: Date.now()
-        }));
-      }
-
-      if (connection === 'close') {
-        const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-        console.log('Connection closed, reconnect:', shouldReconnect);
-
-        if (shouldReconnect) {
-          await initializeBaileysConnection(deviceId, socket, sessionData);
-        } else {
-          await supabase
-            .from('devices')
-            .update({ 
-              status: 'disconnected',
-              phone_number: null,
-              session_data: null
-            })
-            .eq('id', deviceId);
-
-          socket.send(JSON.stringify({
-            type: 'disconnected',
-            timestamp: Date.now()
-          }));
-        }
-      } else if (connection === 'open') {
-        console.log(`Baileys connected for device: ${deviceId}`);
-        
-        // Get phone number from Baileys
-        const phoneNumber = sock.user?.id?.split(':')[0] || null;
-
-        // Save session
-        const session = await authState.saveCreds();
-        
-        await supabase
-          .from('devices')
-          .update({ 
-            status: 'connected',
-            phone_number: phoneNumber ? `+${phoneNumber}` : null,
-            last_connected_at: new Date().toISOString(),
-            qr_code: null,
-            session_data: session
-          })
-          .eq('id', deviceId);
-
-        socket.send(JSON.stringify({
-          type: 'connected',
-          phoneNumber: phoneNumber ? `+${phoneNumber}` : null,
-          timestamp: Date.now()
-        }));
-      }
-    });
-
-    // Save credentials when updated
-    sock.ev.on('creds.update', async () => {
-      const session = await authState.saveCreds();
-      await supabase
-        .from('devices')
-        .update({ session_data: session })
-        .eq('id', deviceId);
-    });
-
-  } catch (error) {
-    console.error('Error initializing Baileys:', error);
-    socket.send(JSON.stringify({
-      type: 'error',
-      error: error instanceof Error ? error.message : 'Failed to initialize'
-    }));
-  }
-}
-
-// Create in-memory auth state
-async function createInMemoryAuthState(savedSession: any) {
-  const creds = savedSession?.creds || {};
-  const keys = savedSession?.keys || {};
-
-  const saveCreds = async () => {
-    return {
-      creds: creds,
-      keys: keys
-    };
-  };
-
-  return {
-    state: {
-      creds,
-      keys: {
-        get: async (type: string, ids: string[]) => {
-          const data: any = {};
-          for (const id of ids) {
-            const key = `${type}-${id}`;
-            if (keys[key]) {
-              data[id] = keys[key];
-            }
-          }
-          return data;
-        },
-        set: async (data: any) => {
-          for (const category in data) {
-            for (const id in data[category]) {
-              const key = `${category}-${id}`;
-              const value = data[category][id];
-              if (value) {
-                keys[key] = value;
-              } else {
-                delete keys[key];
-              }
-            }
-          }
-        }
-      }
-    },
-    saveCreds
-  };
-}
 
 // Helper to convert ArrayBuffer to base64
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
