@@ -32,9 +32,9 @@ export const Devices = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [deviceName, setDeviceName] = useState("");
-  const [ws, setWs] = useState<WebSocket | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<string>("idle");
   const [qrExpiry, setQrExpiry] = useState<number>(0);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchDevices();
@@ -66,8 +66,8 @@ export const Devices = () => {
 
     return () => {
       supabase.removeChannel(channel);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
       }
     };
   }, []);
@@ -129,56 +129,89 @@ export const Devices = () => {
     setSelectedDevice(device);
     setQrDialogOpen(true);
     setConnectionStatus("connecting");
-    setQrExpiry(60); // 60 seconds expiry
+    setQrExpiry(60);
     
     try {
-      // Close existing WebSocket if any
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      // Clear existing polling
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
       }
       
-      // Create WebSocket connection to Baileys edge function
-      const wsUrl = `wss://ierdfxgeectqoekugyvb.supabase.co/functions/v1/whatsapp-baileys?deviceId=${device.id}`;
-      const websocket = new WebSocket(wsUrl);
-      
-      websocket.onopen = () => {
-        console.log('WebSocket connected');
-        setConnectionStatus("generating_qr");
-      };
-      
-      websocket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log('Received:', data);
-        
-        if (data.type === 'qr') {
-          setSelectedDevice(prev => prev ? { ...prev, qr_code: data.qr } : null);
-          setConnectionStatus("qr_ready");
-          setQrExpiry(60); // Reset timer when new QR is generated
-          toast.success("QR Code ready! Scan sekarang");
-        } else if (data.type === 'connected') {
-          setConnectionStatus("connected");
-          toast.success("WhatsApp berhasil terhubung!");
-          fetchDevices();
-        } else if (data.type === 'error') {
-          setConnectionStatus("error");
-          toast.error(data.error);
+      // Update device status to 'connecting' - Railway service will detect this
+      const { error } = await supabase
+        .from("devices")
+        .update({ 
+          status: "connecting",
+          qr_code: null 
+        })
+        .eq("id", device.id);
+
+      if (error) throw error;
+
+      setConnectionStatus("generating_qr");
+      toast.info("Menghubungkan ke WhatsApp...");
+
+      // Poll database for QR code updates from Railway service
+      const interval = setInterval(async () => {
+        const { data, error } = await supabase
+          .from("devices")
+          .select("*")
+          .eq("id", device.id)
+          .single();
+
+        if (error) {
+          console.error("Polling error:", error);
+          return;
         }
-      };
-      
-      websocket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setConnectionStatus("error");
-        toast.error("Connection error. Silakan coba lagi.");
-      };
-      
-      websocket.onclose = () => {
-        console.log('WebSocket closed');
-        if (connectionStatus !== "connected") {
-          setConnectionStatus("idle");
+
+        if (data) {
+          // Update selected device with latest data
+          setSelectedDevice(data);
+
+          // Check for QR code
+          if (data.qr_code && data.status === "connecting") {
+            setConnectionStatus("qr_ready");
+            setQrExpiry(60);
+            toast.success("QR Code siap! Scan sekarang");
+          }
+
+          // Check if connected
+          if (data.status === "connected") {
+            setConnectionStatus("connected");
+            toast.success("WhatsApp berhasil terhubung!");
+            clearInterval(interval);
+            setPollingInterval(null);
+            fetchDevices();
+            setTimeout(() => {
+              setQrDialogOpen(false);
+              setConnectionStatus("idle");
+            }, 1500);
+          }
+
+          // Check for error
+          if (data.status === "error") {
+            setConnectionStatus("error");
+            toast.error("Connection error. Silakan coba lagi.");
+            clearInterval(interval);
+            setPollingInterval(null);
+          }
         }
-      };
-      
-      setWs(websocket);
+      }, 2000); // Poll every 2 seconds
+
+      setPollingInterval(interval);
+
+      // Auto-stop polling after 5 minutes
+      setTimeout(() => {
+        if (interval) {
+          clearInterval(interval);
+          setPollingInterval(null);
+          if (connectionStatus !== "connected") {
+            setConnectionStatus("qr_expired");
+            toast.error("QR Code expired. Silakan coba lagi.");
+          }
+        }
+      }, 300000);
+
     } catch (error: any) {
       setConnectionStatus("error");
       toast.error(error.message);
@@ -187,9 +220,10 @@ export const Devices = () => {
 
   const handleRefreshQR = () => {
     if (selectedDevice) {
-      // Close existing connection
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      // Clear existing polling
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
       }
       // Reconnect
       handleConnectDevice(selectedDevice);
@@ -200,11 +234,6 @@ export const Devices = () => {
     if (!confirm("Yakin ingin menghapus session data? Device akan disconnect.")) return;
 
     try {
-      // Send clear session via WebSocket if connected
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'clear_session' }));
-      }
-      
       await supabase
         .from("devices")
         .update({ 
@@ -225,11 +254,6 @@ export const Devices = () => {
     if (!confirm("Yakin ingin logout dari device ini?")) return;
 
     try {
-      // Send logout message via WebSocket if connected
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'logout' }));
-      }
-      
       await supabase
         .from("devices")
         .update({ 
@@ -514,8 +538,9 @@ export const Devices = () => {
           setQrDialogOpen(open);
           if (!open) {
             setConnectionStatus("idle");
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.close();
+            if (pollingInterval) {
+              clearInterval(pollingInterval);
+              setPollingInterval(null);
             }
           }
         }}>
