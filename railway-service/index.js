@@ -1,3 +1,9 @@
+// Polyfill untuk crypto (fix error "crypto is not defined")
+const { webcrypto } = require('crypto');
+if (!global.crypto) {
+  global.crypto = webcrypto;
+}
+
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { createClient } = require('@supabase/supabase-js');
 const qrcode = require('qrcode-terminal');
