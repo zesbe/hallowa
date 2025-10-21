@@ -347,6 +347,65 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          created_at: string
+          expired_at: string | null
+          fee: number
+          id: string
+          order_id: string
+          payment_method: string
+          payment_number: string | null
+          plan_id: string | null
+          status: string
+          total_payment: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          completed_at?: string | null
+          created_at?: string
+          expired_at?: string | null
+          fee?: number
+          id?: string
+          order_id: string
+          payment_method: string
+          payment_number?: string | null
+          plan_id?: string | null
+          status?: string
+          total_payment: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          created_at?: string
+          expired_at?: string | null
+          fee?: number
+          id?: string
+          order_id?: string
+          payment_method?: string
+          payment_number?: string | null
+          plan_id?: string | null
+          status?: string
+          total_payment?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           created_at: string

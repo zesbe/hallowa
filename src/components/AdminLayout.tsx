@@ -6,6 +6,7 @@ import {
   LayoutDashboard, 
   Users, 
   CreditCard, 
+  DollarSign,
   LogOut,
   Menu,
   X
@@ -25,6 +26,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
     { icon: Users, label: "Kelola User", path: "/admin/users" },
     { icon: CreditCard, label: "Kelola Plan", path: "/admin/plans" },
+    { icon: DollarSign, label: "Laporan Keuangan", path: "/admin/financial" },
   ];
 
   return (
