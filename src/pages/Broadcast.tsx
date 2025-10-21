@@ -10,7 +10,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Send, Clock, CheckCircle2, XCircle, X, Users } from "lucide-react";
+import { Plus, Send, Clock, CheckCircle2, XCircle, X, Users, RefreshCw, Copy, Calendar, FileText, Download, Eye, Edit, Trash2, MoreVertical, Loader2, PlayCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -37,6 +54,9 @@ export const Broadcast = () => {
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedBroadcastId, setSelectedBroadcastId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     message: "",
@@ -157,13 +177,182 @@ export const Broadcast = () => {
 
       if (error) throw error;
 
-      toast.success("Broadcast sedang diproses");
+      toast.success("Broadcast dimulai!", {
+        description: "Pesan sedang dikirim ke semua kontak terpilih."
+      });
       fetchData();
     } catch (error: any) {
       toast.error("Gagal mengirim broadcast: " + error.message);
     } finally {
       setSendingId(null);
     }
+  };
+
+  const handleRetry = async (broadcastId: string) => {
+    setActionLoading(broadcastId);
+    try {
+      const { error } = await supabase
+        .from("broadcasts")
+        .update({ 
+          status: "processing",
+          sent_count: 0,
+          failed_count: 0
+        })
+        .eq("id", broadcastId);
+
+      if (error) throw error;
+
+      toast.success("Broadcast diulang!", {
+        description: "Mencoba mengirim ulang pesan."
+      });
+      fetchData();
+    } catch (error: any) {
+      toast.error("Gagal retry broadcast", {
+        description: error.message
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancel = async (broadcastId: string) => {
+    setActionLoading(broadcastId);
+    try {
+      const { error } = await supabase
+        .from("broadcasts")
+        .update({ status: "cancelled" })
+        .eq("id", broadcastId);
+
+      if (error) throw error;
+
+      toast.success("Broadcast dibatalkan");
+      fetchData();
+    } catch (error: any) {
+      toast.error("Gagal membatalkan broadcast", {
+        description: error.message
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDuplicate = async (broadcast: Broadcast) => {
+    setActionLoading(broadcast.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Get full broadcast data
+      const { data: fullBroadcast } = await supabase
+        .from("broadcasts")
+        .select("*")
+        .eq("id", broadcast.id)
+        .single();
+
+      if (!fullBroadcast) throw new Error("Broadcast not found");
+
+      const { error } = await supabase
+        .from("broadcasts")
+        .insert({
+          user_id: user.id,
+          device_id: fullBroadcast.device_id,
+          name: `${broadcast.name} (Copy)`,
+          message: fullBroadcast.message,
+          media_url: fullBroadcast.media_url,
+          target_contacts: fullBroadcast.target_contacts,
+          status: "draft"
+        });
+
+      if (error) throw error;
+
+      toast.success("Broadcast diduplikasi!", {
+        description: "Salinan broadcast telah dibuat sebagai draft."
+      });
+      fetchData();
+    } catch (error: any) {
+      toast.error("Gagal menduplikasi broadcast", {
+        description: error.message
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedBroadcastId) return;
+    
+    setActionLoading(selectedBroadcastId);
+    try {
+      const { error } = await supabase
+        .from("broadcasts")
+        .delete()
+        .eq("id", selectedBroadcastId);
+
+      if (error) throw error;
+
+      toast.success("Broadcast dihapus");
+      fetchData();
+    } catch (error: any) {
+      toast.error("Gagal menghapus broadcast", {
+        description: error.message
+      });
+    } finally {
+      setActionLoading(null);
+      setDeleteDialogOpen(false);
+      setSelectedBroadcastId(null);
+    }
+  };
+
+  const handleExport = async (broadcast: Broadcast) => {
+    const { data: fullBroadcast } = await supabase
+      .from("broadcasts")
+      .select("*")
+      .eq("id", broadcast.id)
+      .single();
+
+    if (!fullBroadcast) return;
+
+    const targetContacts = Array.isArray(fullBroadcast.target_contacts) ? fullBroadcast.target_contacts : [];
+
+    const data = {
+      name: broadcast.name,
+      message: fullBroadcast.message,
+      status: broadcast.status,
+      sent_count: broadcast.sent_count,
+      failed_count: broadcast.failed_count,
+      total_contacts: targetContacts.length,
+      created_at: broadcast.created_at,
+      target_contacts: targetContacts
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `broadcast-${broadcast.name.replace(/\s+/g, "-")}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast.success("Data broadcast diexport");
+  };
+
+  const handleViewLogs = (broadcast: Broadcast) => {
+    toast.info("Fitur View Logs", {
+      description: `Menampilkan log untuk: ${broadcast.name}`
+    });
+  };
+
+  const handlePreview = (broadcast: Broadcast) => {
+    toast.info("Preview Broadcast", {
+      description: broadcast.message.substring(0, 100) + (broadcast.message.length > 100 ? "..." : "")
+    });
+  };
+
+  const confirmDelete = (broadcastId: string) => {
+    setSelectedBroadcastId(broadcastId);
+    setDeleteDialogOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -369,10 +558,60 @@ export const Broadcast = () => {
                         {broadcast.message}
                       </CardDescription>
                     </div>
-                    <Badge className={getStatusColor(broadcast.status)} variant="secondary">
-                      <StatusIcon className="w-3 h-3 mr-1" />
-                      {broadcast.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={getStatusColor(broadcast.status)} variant="secondary">
+                        <StatusIcon className="w-3 h-3 mr-1" />
+                        {broadcast.status}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            disabled={actionLoading === broadcast.id}
+                            className="h-8 w-8 p-0"
+                          >
+                            {actionLoading === broadcast.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MoreVertical className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => handlePreview(broadcast)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Preview
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(broadcast)}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Duplikasi
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewLogs(broadcast)}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            View Logs
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleExport(broadcast)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Export Data
+                          </DropdownMenuItem>
+                          {broadcast.status === "draft" && (
+                            <DropdownMenuItem>
+                              <Calendar className="mr-2 h-4 w-4" />
+                              Jadwalkan
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => confirmDelete(broadcast.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -390,32 +629,64 @@ export const Broadcast = () => {
                       <p className="text-base md:text-lg font-semibold">{broadcast.sent_count + broadcast.failed_count}</p>
                     </div>
                   </div>
-                  {broadcast.status === "draft" && (
-                    <Button 
-                      className="w-full" 
-                      size="lg"
-                      onClick={() => handleSendNow(broadcast.id)}
-                      disabled={sendingId === broadcast.id}
-                    >
-                      {sendingId === broadcast.id ? (
-                        <>
-                          <Clock className="w-4 h-4 mr-2 animate-spin" />
-                          Mengirim...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-2" />
-                          Kirim Sekarang
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  {broadcast.status === "processing" && (
-                    <Button className="w-full" variant="secondary" size="lg" disabled>
-                      <Clock className="w-4 h-4 mr-2 animate-spin" />
-                      Sedang Mengirim...
-                    </Button>
-                  )}
+                  
+                  <div className="flex gap-2">
+                    {broadcast.status === "draft" && (
+                      <Button 
+                        className="flex-1" 
+                        size="lg"
+                        onClick={() => handleSendNow(broadcast.id)}
+                        disabled={sendingId === broadcast.id}
+                      >
+                        {sendingId === broadcast.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Mengirim...
+                          </>
+                        ) : (
+                          <>
+                            <PlayCircle className="w-4 h-4 mr-2" />
+                            Kirim Sekarang
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    
+                    {broadcast.status === "processing" && (
+                      <>
+                        <Button className="flex-1" variant="secondary" size="lg" disabled>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Sedang Mengirim...
+                        </Button>
+                        <Button 
+                          size="lg"
+                          variant="destructive"
+                          onClick={() => handleCancel(broadcast.id)}
+                          disabled={actionLoading === broadcast.id}
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                    
+                    {broadcast.status === "failed" && (
+                      <Button 
+                        className="flex-1" 
+                        size="lg"
+                        variant="outline"
+                        onClick={() => handleRetry(broadcast.id)}
+                        disabled={actionLoading === broadcast.id}
+                      >
+                        {actionLoading === broadcast.id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                        )}
+                        Coba Lagi
+                      </Button>
+                    )}
+                  </div>
+                  
                   <p className="text-xs text-muted-foreground text-center">
                     Dibuat: {new Date(broadcast.created_at).toLocaleDateString()} {new Date(broadcast.created_at).toLocaleTimeString()}
                   </p>
@@ -426,6 +697,26 @@ export const Broadcast = () => {
         )}
         </div>
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Broadcast?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Broadcast akan dihapus permanen dari sistem.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
