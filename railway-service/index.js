@@ -225,12 +225,9 @@ async function connectWhatsApp(device) {
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
-      // Handle pairing code - request when connecting or qr is available
-      if ((connection === 'connecting' || qr) && !sock.authState.creds.registered && !pairingCodeRequested) {
-        console.log('🔐 Device not registered, checking connection method...');
-        
+      // Handle pairing/QR only when QR event is present to satisfy WA preconditions
+      if (qr && !sock.authState.creds.registered) {
         try {
-          // Check if device wants pairing code
           const { data: deviceData } = await supabase
             .from('devices')
             .select('connection_method, phone_for_pairing')
@@ -238,29 +235,51 @@ async function connectWhatsApp(device) {
             .single();
 
           if (deviceData?.connection_method === 'pairing' && deviceData?.phone_for_pairing) {
-            pairingCodeRequested = true; // Mark as requested to avoid duplicate requests
+            if (pairingCodeRequested) return; // avoid duplicate requests
+            pairingCodeRequested = true;
             console.log('📱 Requesting pairing code for:', deviceData.phone_for_pairing);
-            
-            const pairingCode = await sock.requestPairingCode(deviceData.phone_for_pairing);
-            console.log('✅ Pairing code generated:', pairingCode);
+            try {
+              const pairingCode = await sock.requestPairingCode(deviceData.phone_for_pairing);
+              console.log('✅ Pairing code generated:', pairingCode);
 
-            // Update database with pairing code
-            await supabase
-              .from('devices')
-              .update({ 
-                pairing_code: pairingCode,
-                status: 'connecting',
-                qr_code: null // Clear QR code when using pairing
-              })
-              .eq('id', device.id);
+              await supabase
+                .from('devices')
+                .update({ 
+                  pairing_code: pairingCode,
+                  status: 'connecting',
+                  qr_code: null // Clear QR code when using pairing
+                })
+                .eq('id', device.id);
 
-            console.log('✅ Pairing code saved to database');
-          } else if (qr && (!deviceData || deviceData.connection_method === 'qr')) {
-            // Only process QR if connection method is 'qr'
+              console.log('✅ Pairing code saved to database');
+            } catch (pairErr) {
+              const status = pairErr?.output?.statusCode || pairErr?.status || pairErr?.data?.status;
+              console.error('❌ Error requesting pairing code:', pairErr);
+              if (status === 428 || /Precondition/i.test(String(pairErr?.message || ''))) {
+                console.log('⏳ Precondition not ready, retrying pairing code in 1s...');
+                pairingCodeRequested = false;
+                setTimeout(async () => {
+                  if (!sock.authState.creds.registered && !pairingCodeRequested) {
+                    try {
+                      pairingCodeRequested = true;
+                      const retryCode = await sock.requestPairingCode(deviceData.phone_for_pairing);
+                      console.log('✅ Pairing code (retry) generated:', retryCode);
+                      await supabase.from('devices').update({ pairing_code: retryCode, status: 'connecting', qr_code: null }).eq('id', device.id);
+                    } catch (retryErr) {
+                      console.error('❌ Pairing retry failed:', retryErr);
+                      await supabase.from('devices').update({ status: 'error', pairing_code: null }).eq('id', device.id);
+                    }
+                  }
+                }, 1000);
+              } else {
+                await supabase.from('devices').update({ status: 'error', pairing_code: null }).eq('id', device.id);
+              }
+            }
+          } else {
+            // QR method
             console.log('📷 QR Code generated for', device.device_name);
             const qrDataUrl = await QRCode.toDataURL(qr);
 
-            // Update database with QR code
             await supabase
               .from('devices')
               .update({ 
