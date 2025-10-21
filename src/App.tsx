@@ -8,6 +8,7 @@ import { InstallPWA } from "@/components/InstallPWA";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import AdminLogin from "./pages/AdminLogin";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
 import Broadcast from "./pages/Broadcast";
@@ -18,6 +19,10 @@ import Contacts from "./pages/Contacts";
 import Chatbot from "./pages/Chatbot";
 import ApiKeys from "./pages/ApiKeys";
 import Webhooks from "./pages/Webhooks";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminPlans from "./pages/admin/AdminPlans";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -32,16 +37,25 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/auth" replace />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/devices" element={<Devices />} />
-            <Route path="/broadcast" element={<Broadcast />} />
-            <Route path="/scheduled" element={<Scheduled />} />
-            <Route path="/templates" element={<Templates />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/chatbot" element={<Chatbot />} />
-            <Route path="/api-keys" element={<ApiKeys />} />
-            <Route path="/webhooks" element={<Webhooks />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            
+            {/* User Routes - Protected */}
+            <Route path="/dashboard" element={<ProtectedRoute requiredRole="user"><Dashboard /></ProtectedRoute>} />
+            <Route path="/devices" element={<ProtectedRoute requiredRole="user"><Devices /></ProtectedRoute>} />
+            <Route path="/broadcast" element={<ProtectedRoute requiredRole="user"><Broadcast /></ProtectedRoute>} />
+            <Route path="/scheduled" element={<ProtectedRoute requiredRole="user"><Scheduled /></ProtectedRoute>} />
+            <Route path="/templates" element={<ProtectedRoute requiredRole="user"><Templates /></ProtectedRoute>} />
+            <Route path="/contacts" element={<ProtectedRoute requiredRole="user"><Contacts /></ProtectedRoute>} />
+            <Route path="/chatbot" element={<ProtectedRoute requiredRole="user"><Chatbot /></ProtectedRoute>} />
+            <Route path="/api-keys" element={<ProtectedRoute requiredRole="user"><ApiKeys /></ProtectedRoute>} />
+            <Route path="/webhooks" element={<ProtectedRoute requiredRole="user"><Webhooks /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute requiredRole="user"><Settings /></ProtectedRoute>} />
+            
+            {/* Admin Routes - Protected */}
+            <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute requiredRole="admin"><AdminUsers /></ProtectedRoute>} />
+            <Route path="/admin/plans" element={<ProtectedRoute requiredRole="admin"><AdminPlans /></ProtectedRoute>} />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

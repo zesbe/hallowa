@@ -18,15 +18,41 @@ export const Auth = () => {
 
   useEffect(() => {
     // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard");
+        // Check if user is admin
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single();
+        
+        if (roleData?.role === "admin") {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
-    });
+    };
+    
+    checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("/dashboard");
+        setTimeout(async () => {
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .single();
+          
+          if (roleData?.role === "admin") {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/dashboard");
+          }
+        }, 0);
       }
     });
 
@@ -149,16 +175,25 @@ export const Auth = () => {
             >
               {loading ? "Loading..." : isLogin ? "Masuk" : "Daftar"}
             </Button>
-            <div className="text-center">
+            <div className="text-center space-y-2">
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-primary hover:underline"
+                className="text-sm text-primary hover:underline block w-full"
               >
                 {isLogin
                   ? "Belum punya akun? Daftar sekarang"
                   : "Sudah punya akun? Masuk"}
               </button>
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/admin/login")}
+                  className="text-sm text-muted-foreground hover:text-primary hover:underline block w-full"
+                >
+                  Login sebagai Admin
+                </button>
+              )}
             </div>
           </form>
         </CardContent>
