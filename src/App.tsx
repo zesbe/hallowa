@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
 import Broadcast from "./pages/Broadcast";
+import Scheduled from "./pages/Scheduled";
 import Templates from "./pages/Templates";
 import Settings from "./pages/Settings";
 import Contacts from "./pages/Contacts";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/devices" element={<Devices />} />
             <Route path="/broadcast" element={<Broadcast />} />
+            <Route path="/scheduled" element={<Scheduled />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/chatbot" element={<Chatbot />} />
