@@ -9,6 +9,7 @@ import { Plus, Smartphone, QrCode, Trash2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import QRCode from "qrcode";
 
 interface Device {
   id: string;
@@ -84,19 +85,28 @@ export const Devices = () => {
         .eq("id", device.id);
 
       // In a real implementation, this would call the Baileys edge function
-      // to generate a QR code. For now, we'll simulate it.
+      // to generate a QR code. For now, we'll generate a mock QR code.
       toast.info("Generating QR code...");
       
-      // Simulate QR code generation
+      // Generate a realistic-looking QR code
       setTimeout(async () => {
-        const mockQR = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==`;
+        // Generate QR code with device ID and timestamp for uniqueness
+        const qrData = `whatsapp-connect:${device.id}:${Date.now()}`;
+        const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: "#000000",
+            light: "#FFFFFF"
+          }
+        });
         
         await supabase
           .from("devices")
-          .update({ qr_code: mockQR })
+          .update({ qr_code: qrCodeDataUrl })
           .eq("id", device.id);
           
-        setSelectedDevice({ ...device, qr_code: mockQR });
+        setSelectedDevice({ ...device, qr_code: qrCodeDataUrl });
         toast.success("Scan QR code dengan WhatsApp Anda");
       }, 1000);
     } catch (error: any) {
