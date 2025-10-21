@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Smartphone, QrCode, Trash2, RefreshCw, Copy, LogOut, Info, RotateCcw, Database, Bell, BellOff } from "lucide-react";
+import { Plus, Smartphone, QrCode, Trash2, RefreshCw, Copy, LogOut, Info, RotateCcw, Database, Bell, BellOff, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -17,6 +17,8 @@ import {
   notifyDeviceError 
 } from "@/utils/notifications";
 import { DeviceCard } from "@/components/DeviceCard";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Device {
   id: string;
@@ -35,6 +37,7 @@ interface Device {
 }
 
 export const Devices = () => {
+  const { canAddDevice, isLimitReached, subscription, refreshUsage } = useSubscription();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -155,6 +158,14 @@ export const Devices = () => {
   const handleCreateDevice = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Check limit
+    if (!canAddDevice()) {
+      toast.error("Limit device tercapai!", {
+        description: `Plan Anda hanya mengizinkan ${subscription?.plan?.max_devices || 0} device. Upgrade plan untuk menambah lebih banyak.`
+      });
+      return;
+    }
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
@@ -171,6 +182,7 @@ export const Devices = () => {
       setDeviceName("");
       setDialogOpen(false);
       fetchDevices();
+      refreshUsage(); // Refresh usage stats
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -463,7 +475,10 @@ export const Devices = () => {
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-primary to-secondary text-white flex-1">
+                <Button 
+                  className="bg-gradient-to-r from-primary to-secondary text-white flex-1"
+                  disabled={isLimitReached('devices')}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   <span className="hidden sm:inline">Tambah Device</span>
                   <span className="sm:hidden">Tambah</span>
@@ -493,6 +508,16 @@ export const Devices = () => {
             </Dialog>
           </div>
         </div>
+
+        {isLimitReached('devices') && subscription && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Limit device tercapai ({devices.length}/{subscription.plan.max_devices}). 
+              Upgrade plan untuk menambah lebih banyak device.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {loading ? (
           <Card>
