@@ -38,70 +38,57 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 // Store active WhatsApp sockets
 const activeSockets = new Map();
 
-// Listen to devices table for 'connecting' status
+// Polling mechanism - lebih reliable daripada realtime untuk Railway
 async function startService() {
   console.log('🚀 WhatsApp Baileys Service Started');
-  console.log('📡 Listening to devices table...');
+  console.log('📡 Using polling mechanism (every 5 seconds)');
   console.log('🔗 Supabase URL:', supabaseUrl);
 
-  // Subscribe to real-time changes
-  const channel = supabase
-    .channel('devices-listener')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'devices'
-      },
-      async (payload) => {
-        console.log('📱 Device change detected:', payload.eventType, payload.new?.device_name);
+  // Function to check devices
+  async function checkDevices() {
+    try {
+      const { data: devices, error } = await supabase
+        .from('devices')
+        .select('*')
+        .in('status', ['connecting', 'connected']);
 
-        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-          const device = payload.new;
+      if (error) {
+        console.error('❌ Error fetching devices:', error);
+        return;
+      }
 
-          // Start connection if status is 'connecting'
-          if (device.status === 'connecting' && !activeSockets.has(device.id)) {
-            console.log(`🔄 Starting connection for device: ${device.device_name}`);
-            await connectWhatsApp(device);
-          }
-
-          // Disconnect if status is 'disconnected'
-          if (device.status === 'disconnected' && activeSockets.has(device.id)) {
-            const sock = activeSockets.get(device.id);
-            sock?.end();
-            activeSockets.delete(device.id);
-            console.log(`❌ Disconnected device: ${device.device_name}`);
-          }
+      // Connect devices with 'connecting' status
+      const connectingDevices = devices?.filter(d => d.status === 'connecting') || [];
+      for (const device of connectingDevices) {
+        if (!activeSockets.has(device.id)) {
+          console.log(`🔄 Starting connection for device: ${device.device_name}`);
+          await connectWhatsApp(device);
         }
       }
-    )
-    .subscribe((status) => {
-      console.log('📡 Subscription status:', status);
-    });
 
-  // Initial check for any 'connecting' devices
-  console.log('🔍 Checking for pending connections...');
-  const { data: devices, error } = await supabase
-    .from('devices')
-    .select('*')
-    .eq('status', 'connecting');
-
-  if (error) {
-    console.error('❌ Error fetching devices:', error);
-    return;
-  }
-
-  console.log(`📋 Found ${devices?.length || 0} devices with 'connecting' status`);
-
-  // Connect all pending devices
-  if (devices && devices.length > 0) {
-    for (const device of devices) {
-      if (!activeSockets.has(device.id)) {
-        await connectWhatsApp(device);
+      // Disconnect devices that should be disconnected
+      for (const [deviceId, sock] of activeSockets) {
+        const device = devices?.find(d => d.id === deviceId);
+        if (!device || device.status === 'disconnected') {
+          console.log(`❌ Disconnecting device: ${deviceId}`);
+          sock?.end();
+          activeSockets.delete(deviceId);
+        }
       }
+
+      console.log(`✅ Active connections: ${activeSockets.size}`);
+    } catch (error) {
+      console.error('❌ Error in checkDevices:', error);
     }
   }
+
+  // Initial check
+  console.log('🔍 Initial check for pending connections...');
+  await checkDevices();
+
+  // Poll every 5 seconds
+  setInterval(checkDevices, 5000);
+  console.log('⏱️ Polling started (every 5 seconds)');
 }
 
 async function connectWhatsApp(device) {
