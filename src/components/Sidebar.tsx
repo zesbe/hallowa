@@ -54,9 +54,19 @@ const settingsItems = [
   { icon: Key, label: "API Key", path: "/api-keys" },
 ];
 
-export const Sidebar = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isOpen || internalOpen;
+  const handleClose = () => {
+    setInternalOpen(false);
+    onClose?.();
+  };
 
   const NavItem = ({ icon: Icon, label, path, badge }: any) => {
     const isActive = location.pathname === path;
@@ -69,7 +79,7 @@ export const Sidebar = () => {
           "hover:bg-sidebar-accent group relative",
           isActive && "bg-gradient-to-r from-primary/10 to-secondary/10 border-l-4 border-primary"
         )}
-        onClick={() => setIsOpen(false)}
+        onClick={handleClose}
       >
         <Icon
           className={cn(
@@ -111,7 +121,7 @@ export const Sidebar = () => {
           variant="ghost"
           size="icon"
           className="lg:hidden"
-          onClick={() => setIsOpen(false)}
+          onClick={handleClose}
         >
           <X className="w-5 h-5" />
         </Button>
@@ -173,21 +183,11 @@ export const Sidebar = () => {
 
   return (
     <>
-      {/* Mobile Menu Button - Always visible on mobile */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden fixed top-3 left-3 z-50 bg-background/95 backdrop-blur border shadow-sm"
-        onClick={() => setIsOpen(true)}
-      >
-        <Menu className="w-5 h-5" />
-      </Button>
-
       {/* Mobile Overlay */}
-      {isOpen && (
+      {open && (
         <div
           className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
-          onClick={() => setIsOpen(false)}
+          onClick={handleClose}
         />
       )}
 
@@ -195,7 +195,7 @@ export const Sidebar = () => {
       <aside
         className={cn(
           "fixed lg:sticky top-0 left-0 h-screen w-72 z-[70] transform transition-transform duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {sidebarContent}
@@ -203,3 +203,15 @@ export const Sidebar = () => {
     </>
   );
 };
+
+// Export mobile menu toggle button separately
+export const MobileMenuButton = ({ onClick }: { onClick: () => void }) => (
+  <Button
+    variant="ghost"
+    size="icon"
+    className="lg:hidden w-11 h-11 bg-background/95 backdrop-blur border shadow-sm hover:bg-accent"
+    onClick={onClick}
+  >
+    <Menu className="w-6 h-6" />
+  </Button>
+);
