@@ -1,9 +1,7 @@
-import { useSwipeable } from "react-swipeable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { QrCode, Info, Database, RotateCcw, LogOut, Trash2, Copy } from "lucide-react";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface Device {
@@ -41,23 +39,9 @@ export function DeviceCard({
   getStatusColor,
   getStatusText,
 }: DeviceCardProps) {
-  const [showActions, setShowActions] = useState(false);
-
-  const handlers = useSwipeable({
-    onSwipedLeft: () => setShowActions(true),
-    onSwipedRight: () => setShowActions(false),
-    trackMouse: false,
-    trackTouch: true,
-  });
-
   return (
-    <div className="relative overflow-hidden" {...handlers}>
-      <Card
-        className={cn(
-          "transition-transform duration-300 ease-out",
-          showActions && "translate-x-[-120px]"
-        )}
-      >
+    <div className="relative overflow-hidden">
+      <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex-1 min-w-0">
@@ -98,72 +82,70 @@ export function DeviceCard({
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4">
+          <div className="grid grid-cols-2 gap-2 mt-4">
             {device.status === "disconnected" && (
               <Button
                 size="sm"
                 onClick={() => onConnect(device)}
-                className="bg-blue-500 hover:bg-blue-600 text-white text-xs flex-1"
+                className="bg-blue-500 hover:bg-blue-600 text-white text-xs"
               >
                 <QrCode className="w-3 h-3 mr-1" />
                 Connect
               </Button>
             )}
+            {device.status === "connected" && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onClearSession(device)}
+                  className="text-xs border-purple-500 text-purple-500"
+                >
+                  <Database className="w-3 h-3 mr-1" />
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onRelog(device)}
+                  className="text-xs border-green-500 text-green-500"
+                >
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Relog
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onLogout(device)}
+                  className="text-xs border-blue-500 text-blue-500"
+                >
+                  <LogOut className="w-3 h-3 mr-1" />
+                  Logout
+                </Button>
+              </>
+            )}
             <Button
               size="sm"
               variant="outline"
               onClick={() => onDetail(device)}
-              className="flex-1"
+              className="text-xs"
             >
               <Info className="w-3 h-3 mr-1" />
               Detail
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => onDelete(device.id)}
+              className="text-xs"
+            >
+              <Trash2 className="w-3 h-3 mr-1" />
+              Delete
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Swipe Actions */}
-      {showActions && (
-        <div className="absolute right-0 top-0 bottom-0 flex items-center gap-1 pr-2">
-          {device.status === "connected" && (
-            <>
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => {
-                  onClearSession(device);
-                  setShowActions(false);
-                }}
-                className="h-10 w-10 border-purple-500 text-purple-500"
-              >
-                <Database className="w-4 h-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => {
-                  onLogout(device);
-                  setShowActions(false);
-                }}
-                className="h-10 w-10 border-blue-500 text-blue-500"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </>
-          )}
-          <Button
-            size="icon"
-            variant="destructive"
-            onClick={() => {
-              onDelete(device.id);
-              setShowActions(false);
-            }}
-            className="h-10 w-10 bg-red-500"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
