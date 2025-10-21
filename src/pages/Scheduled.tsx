@@ -384,18 +384,22 @@ export default function Scheduled() {
 
   const BroadcastCard = ({ broadcast, showActions = true }: { broadcast: Broadcast; showActions?: boolean }) => (
     <Card key={broadcast.id} className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 md:pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg mb-1 truncate">{broadcast.name}</CardTitle>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <Badge className={getStatusColor(broadcast.status)}>
+            <CardTitle className="text-lg md:text-lg mb-2 truncate">{broadcast.name}</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Badge className={getStatusColor(broadcast.status)} variant="default">
                 {getStatusText(broadcast.status)}
               </Badge>
               {broadcast.scheduled_at && (
                 <Badge variant="outline" className="text-xs">
                   <Clock className="w-3 h-3 mr-1" />
-                  {formatDateTime(broadcast.scheduled_at)}
+                  <span className="hidden sm:inline">{formatDateTime(broadcast.scheduled_at)}</span>
+                  <span className="sm:hidden">
+                    {new Date(broadcast.scheduled_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}{' '}
+                    {new Date(broadcast.scheduled_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </Badge>
               )}
             </div>
@@ -407,29 +411,31 @@ export default function Scheduled() {
                 size="icon"
                 onClick={() => handleEditSchedule(broadcast)}
                 disabled={actionLoading === broadcast.id}
+                className="h-10 w-10 md:h-9 md:w-9"
               >
-                <Edit className="w-4 h-4" />
+                <Edit className="w-5 h-5 md:w-4 md:h-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => confirmDelete(broadcast)}
                 disabled={actionLoading === broadcast.id}
+                className="h-10 w-10 md:h-9 md:w-9"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-5 h-5 md:w-4 md:h-4" />
               </Button>
             </div>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <CardDescription className="line-clamp-2">{broadcast.message}</CardDescription>
+        <CardDescription className="line-clamp-2 text-base md:text-sm">{broadcast.message}</CardDescription>
         
         <div className="flex flex-wrap gap-2">
           {broadcast.media_url && (
             <Badge variant="outline" className="text-xs">
               <ImageIcon className="w-3 h-3 mr-1" />
-              Media terlampir
+              Media
             </Badge>
           )}
           <Badge variant="outline" className="text-xs">
@@ -440,11 +446,11 @@ export default function Scheduled() {
 
         {broadcast.status !== "draft" && (
           <div className="flex gap-4 text-sm pt-2 border-t">
-            <div className="flex items-center gap-1 text-success">
+            <div className="flex items-center gap-1.5 text-success">
               <CheckCircle2 className="w-4 h-4" />
               <span>{broadcast.sent_count || 0} terkirim</span>
             </div>
-            <div className="flex items-center gap-1 text-destructive">
+            <div className="flex items-center gap-1.5 text-destructive">
               <XCircle className="w-4 h-4" />
               <span>{broadcast.failed_count || 0} gagal</span>
             </div>
@@ -452,19 +458,20 @@ export default function Scheduled() {
         )}
 
         {showActions && broadcast.status === "draft" && (
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <Button
-              size="sm"
-              className="flex-1"
+              size="default"
+              className="flex-1 h-11 md:h-9 text-base md:text-sm"
               onClick={() => handleSendNow(broadcast.id)}
               disabled={actionLoading === broadcast.id}
             >
-              <Send className="w-3 h-3 mr-1" />
+              <Send className="w-4 h-4 mr-2" />
               Kirim Sekarang
             </Button>
             <Button
-              size="sm"
+              size="default"
               variant="outline"
+              className="h-11 md:h-9 text-base md:text-sm sm:w-auto"
               onClick={() => handleCancelSchedule(broadcast.id)}
               disabled={actionLoading === broadcast.id}
             >
@@ -501,213 +508,229 @@ export default function Scheduled() {
           </div>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-primary to-secondary text-white w-full">
-                <Plus className="w-4 h-4 mr-2" />
+              <Button className="bg-gradient-to-r from-primary to-secondary text-white w-full md:w-auto h-12 md:h-10 text-base md:text-sm">
+                <Plus className="w-5 h-5 md:w-4 md:h-4 mr-2" />
                 Buat Broadcast Terjadwal
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh]">
-              <DialogHeader>
-                <DialogTitle>Buat Broadcast Terjadwal</DialogTitle>
-                <DialogDescription>
-                  Atur jadwal pengiriman broadcast otomatis
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nama Campaign</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Promo Akhir Tahun"
-                    required
-                  />
-                </div>
+            <DialogContent className="max-w-full md:max-w-2xl h-[100dvh] md:h-auto max-h-[90vh] p-0 gap-0">
+              <div className="sticky top-0 z-10 bg-background border-b px-4 md:px-6 py-4">
+                <DialogHeader>
+                  <DialogTitle className="text-lg md:text-xl">Buat Broadcast Terjadwal</DialogTitle>
+                  <DialogDescription className="text-sm">
+                    Atur jadwal pengiriman broadcast otomatis
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+              <ScrollArea className="flex-1 h-[calc(100dvh-180px)] md:h-auto">
+                <form onSubmit={handleCreate} className="space-y-4 md:space-y-6 p-4 md:p-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-base md:text-sm">Nama Campaign</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Promo Akhir Tahun"
+                      className="h-12 md:h-10 text-base"
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="device">Device</Label>
-                  <Select
-                    value={formData.device_id}
-                    onValueChange={(value) => setFormData({ ...formData, device_id: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih device" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {devices.map((device) => (
-                        <SelectItem key={device.id} value={device.id}>
-                          {device.device_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="device" className="text-base md:text-sm">Device</Label>
+                    <Select
+                      value={formData.device_id}
+                      onValueChange={(value) => setFormData({ ...formData, device_id: value })}
+                      required
+                    >
+                      <SelectTrigger className="h-12 md:h-10 text-base">
+                        <SelectValue placeholder="Pilih device" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {devices.map((device) => (
+                          <SelectItem key={device.id} value={device.id} className="text-base md:text-sm py-3 md:py-2">
+                            {device.device_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="scheduled">Jadwal Pengiriman</Label>
-                  <Input
-                    id="scheduled"
-                    type="datetime-local"
-                    value={formData.scheduled_at}
-                    onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-                    min={new Date().toISOString().slice(0, 16)}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Pilih waktu untuk pengiriman otomatis
-                  </p>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="scheduled" className="text-base md:text-sm">Jadwal Pengiriman</Label>
+                    <Input
+                      id="scheduled"
+                      type="datetime-local"
+                      value={formData.scheduled_at}
+                      onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                      min={new Date().toISOString().slice(0, 16)}
+                      className="h-12 md:h-10 text-base"
+                      required
+                    />
+                    <p className="text-xs md:text-xs text-muted-foreground">
+                      Pilih waktu untuk pengiriman otomatis
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="message">Pesan</Label>
-                  <Textarea
-                    id="message"
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    placeholder="Tulis pesan broadcast..."
-                    rows={4}
-                    required
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="message" className="text-base md:text-sm">Pesan</Label>
+                    <Textarea
+                      id="message"
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      placeholder="Tulis pesan broadcast..."
+                      rows={5}
+                      className="text-base resize-none"
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="file">File Media (Opsional)</Label>
-                  {formData.media_url ? (
-                    <div className="flex items-center gap-2 p-3 border rounded-md">
-                      <ImageIcon className="w-4 h-4 text-primary" />
-                      <span className="text-sm flex-1 truncate">File terlampir</span>
-                      <Button type="button" variant="ghost" size="sm" onClick={handleRemoveFile}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="file"
-                        type="file"
-                        accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
-                        onChange={handleFileUpload}
-                        disabled={uploadingFile}
-                        className="hidden"
-                      />
-                      <Label htmlFor="file" className="flex-1">
-                        <div className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-accent transition-colors">
-                          {uploadingFile ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Upload className="w-4 h-4" />
-                          )}
-                          <span className="text-sm">
-                            {uploadingFile ? "Mengupload..." : "Pilih file"}
-                          </span>
-                        </div>
-                      </Label>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Mendukung gambar, video, audio, PDF, dokumen (Max 50MB)
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Penerima</Label>
-                  <Tabs defaultValue="manual" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="manual">Input Manual</TabsTrigger>
-                      <TabsTrigger value="contacts">Dari Kontak</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="manual" className="space-y-3">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="628123456789"
-                          value={currentNumber}
-                          onChange={(e) => setCurrentNumber(e.target.value)}
-                          onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addManualNumber())}
-                        />
-                        <Button type="button" onClick={addManualNumber} size="sm">
-                          <Plus className="w-4 h-4" />
+                  <div className="space-y-2">
+                    <Label htmlFor="file" className="text-base md:text-sm">File Media (Opsional)</Label>
+                    {formData.media_url ? (
+                      <div className="flex items-center gap-3 p-4 md:p-3 border rounded-lg bg-accent/50">
+                        <ImageIcon className="w-5 h-5 md:w-4 md:h-4 text-primary" />
+                        <span className="text-base md:text-sm flex-1 truncate">File terlampir</span>
+                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveFile} className="h-10 w-10 md:h-8 md:w-8">
+                          <X className="w-5 h-5 md:w-4 md:h-4" />
                         </Button>
                       </div>
-                      {manualNumbers.length > 0 && (
-                        <ScrollArea className="h-32 border rounded-md p-2">
-                          <div className="flex flex-wrap gap-2">
-                            {manualNumbers.map((num) => (
-                              <Badge key={num} variant="secondary" className="gap-1">
-                                {num}
-                                <X
-                                  className="w-3 h-3 cursor-pointer"
-                                  onClick={() => removeManualNumber(num)}
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="file"
+                          type="file"
+                          accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+                          onChange={handleFileUpload}
+                          disabled={uploadingFile}
+                          className="hidden"
+                        />
+                        <Label htmlFor="file" className="flex-1 cursor-pointer">
+                          <div className="flex items-center justify-center gap-3 p-4 md:p-3 border-2 border-dashed rounded-lg hover:bg-accent transition-colors active:scale-95">
+                            {uploadingFile ? (
+                              <Loader2 className="w-5 h-5 md:w-4 md:h-4 animate-spin" />
+                            ) : (
+                              <Upload className="w-5 h-5 md:w-4 md:h-4" />
+                            )}
+                            <span className="text-base md:text-sm font-medium">
+                              {uploadingFile ? "Mengupload..." : "Pilih file"}
+                            </span>
+                          </div>
+                        </Label>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Mendukung gambar, video, audio, PDF, dokumen (Max 50MB)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-base md:text-sm">Penerima</Label>
+                    <Tabs defaultValue="manual" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2 h-12 md:h-10">
+                        <TabsTrigger value="manual" className="text-base md:text-sm">Input Manual</TabsTrigger>
+                        <TabsTrigger value="contacts" className="text-base md:text-sm">Dari Kontak</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="manual" className="space-y-3 mt-4">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="628123456789"
+                            value={currentNumber}
+                            onChange={(e) => setCurrentNumber(e.target.value)}
+                            onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addManualNumber())}
+                            className="h-12 md:h-10 text-base"
+                          />
+                          <Button type="button" onClick={addManualNumber} size="lg" className="h-12 w-12 md:h-10 md:w-10 md:size-default">
+                            <Plus className="w-5 h-5 md:w-4 md:h-4" />
+                          </Button>
+                        </div>
+                        {manualNumbers.length > 0 && (
+                          <ScrollArea className="h-32 border rounded-lg p-3">
+                            <div className="flex flex-wrap gap-2">
+                              {manualNumbers.map((num) => (
+                                <Badge key={num} variant="secondary" className="gap-1 text-sm py-1.5 px-2.5">
+                                  {num}
+                                  <X
+                                    className="w-3.5 h-3.5 cursor-pointer hover:text-destructive"
+                                    onClick={() => removeManualNumber(num)}
+                                  />
+                                </Badge>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        )}
+                      </TabsContent>
+                      <TabsContent value="contacts" className="space-y-3 mt-4">
+                        <Input
+                          placeholder="Cari kontak..."
+                          value={contactSearch}
+                          onChange={(e) => setContactSearch(e.target.value)}
+                          className="h-12 md:h-10 text-base"
+                        />
+                        <ScrollArea className="h-64 md:h-64 border rounded-lg p-2">
+                          <div className="space-y-1">
+                            {filteredContactList.map((contact) => (
+                              <div
+                                key={contact.id}
+                                className="flex items-center gap-3 p-3 md:p-2 hover:bg-accent rounded-lg cursor-pointer active:scale-[0.98] transition-all"
+                                onClick={() => toggleContact(contact.phone_number)}
+                              >
+                                <Checkbox
+                                  checked={selectedContacts.includes(contact.phone_number)}
+                                  onCheckedChange={() => toggleContact(contact.phone_number)}
+                                  className="h-5 w-5 md:h-4 md:w-4"
                                 />
-                              </Badge>
+                                <div className="flex items-center gap-3 md:gap-2 flex-1 min-w-0">
+                                  {contact.is_group ? (
+                                    <Users className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground flex-shrink-0" />
+                                  ) : (
+                                    <div className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-base md:text-sm font-medium truncate">
+                                      {contact.name || contact.phone_number}
+                                    </p>
+                                    <p className="text-sm md:text-xs text-muted-foreground truncate">
+                                      {contact.phone_number}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </ScrollArea>
-                      )}
-                    </TabsContent>
-                    <TabsContent value="contacts" className="space-y-3">
-                      <Input
-                        placeholder="Cari kontak..."
-                        value={contactSearch}
-                        onChange={(e) => setContactSearch(e.target.value)}
-                      />
-                      <ScrollArea className="h-64 border rounded-md p-3">
-                        <div className="space-y-2">
-                          {filteredContactList.map((contact) => (
-                            <div
-                              key={contact.id}
-                              className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-                              onClick={() => toggleContact(contact.phone_number)}
-                            >
-                              <Checkbox
-                                checked={selectedContacts.includes(contact.phone_number)}
-                                onCheckedChange={() => toggleContact(contact.phone_number)}
-                              />
-                              <div className="flex items-center gap-2 flex-1">
-                                {contact.is_group ? (
-                                  <Users className="w-4 h-4 text-muted-foreground" />
-                                ) : (
-                                  <div className="w-4 h-4" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">
-                                    {contact.name || contact.phone_number}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground truncate">
-                                    {contact.phone_number}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </TabsContent>
-                  </Tabs>
-                  <p className="text-xs text-muted-foreground">
-                    Total: {manualNumbers.length + selectedContacts.length} penerima
-                  </p>
-                </div>
-
-                <Button type="submit" className="w-full">
-                  <Calendar className="w-4 h-4 mr-2" />
+                      </TabsContent>
+                    </Tabs>
+                    <div className="flex items-center justify-between bg-accent/50 rounded-lg p-3">
+                      <span className="text-sm text-muted-foreground">Total penerima</span>
+                      <Badge variant="secondary" className="text-base font-semibold">
+                        {manualNumbers.length + selectedContacts.length}
+                      </Badge>
+                    </div>
+                  </div>
+                </form>
+              </ScrollArea>
+              <div className="sticky bottom-0 bg-background border-t p-4 md:p-6">
+                <Button type="submit" onClick={handleCreate} className="w-full h-12 md:h-10 text-base md:text-sm">
+                  <Calendar className="w-5 h-5 md:w-4 md:h-4 mr-2" />
                   Jadwalkan Broadcast
                 </Button>
-              </form>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
 
         <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upcoming">
-              <Calendar className="w-4 h-4 mr-2" />
-              Akan Datang ({upcomingBroadcasts.length})
+          <TabsList className="grid w-full grid-cols-2 h-12 md:h-10">
+            <TabsTrigger value="upcoming" className="text-base md:text-sm">
+              <Calendar className="w-5 h-5 md:w-4 md:h-4 mr-2" />
+              <span className="hidden sm:inline">Akan Datang</span>
+              <span className="sm:hidden">Jadwal</span>
+              <span className="ml-1">({upcomingBroadcasts.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="past">
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Riwayat ({pastBroadcasts.length})
+            <TabsTrigger value="past" className="text-base md:text-sm">
+              <CheckCircle2 className="w-5 h-5 md:w-4 md:h-4 mr-2" />
+              <span>Riwayat ({pastBroadcasts.length})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -756,35 +779,36 @@ export default function Scheduled() {
 
       {/* Edit Schedule Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Jadwal Broadcast</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Edit Jadwal Broadcast</DialogTitle>
+            <DialogDescription className="text-sm">
               Ubah waktu pengiriman broadcast: {selectedBroadcast?.name}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="new-schedule">Jadwal Baru</Label>
+              <Label htmlFor="new-schedule" className="text-base md:text-sm">Jadwal Baru</Label>
               <Input
                 id="new-schedule"
                 type="datetime-local"
                 value={newScheduledTime}
                 onChange={(e) => setNewScheduledTime(e.target.value)}
                 min={new Date().toISOString().slice(0, 16)}
+                className="h-12 md:h-10 text-base"
               />
             </div>
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 h-11 md:h-10 text-base md:text-sm"
               onClick={() => setEditDialogOpen(false)}
             >
               Batal
             </Button>
             <Button
-              className="flex-1"
+              className="flex-1 h-11 md:h-10 text-base md:text-sm"
               onClick={handleSaveSchedule}
               disabled={!newScheduledTime || actionLoading === selectedBroadcast?.id}
             >
