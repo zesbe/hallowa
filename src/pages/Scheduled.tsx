@@ -446,13 +446,13 @@ export default function Scheduled() {
     return (
       <Card 
         key={broadcast.id} 
-        className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+        className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden bg-card border-border"
         onClick={handleCardClick}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg font-bold mb-2 truncate">{broadcast.name}</CardTitle>
+              <CardTitle className="text-lg font-bold mb-2 truncate text-foreground">{broadcast.name}</CardTitle>
             <div className="flex flex-wrap gap-2">
               <Badge className={getStatusColor(broadcast.status)} variant="default">
                 {getStatusText(broadcast.status)}
@@ -497,7 +497,7 @@ export default function Scheduled() {
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Message Preview */}
-        <div className="bg-muted/50 rounded-lg p-3 border">
+        <div className="bg-muted/80 rounded-lg p-3 border border-border">
           <p className="text-sm line-clamp-2 text-foreground">{broadcast.message}</p>
         </div>
         
@@ -585,17 +585,23 @@ export default function Scheduled() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-muted-foreground" />
+            <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <Select value={userTimezone} onValueChange={handleTimezoneChange}>
-              <SelectTrigger className="h-9 w-full sm:w-[200px] text-xs">
+              <SelectTrigger className="h-9 w-full sm:w-[220px] text-xs bg-card text-card-foreground border-input">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                {TIMEZONES.map((tz) => (
-                  <SelectItem key={tz.value} value={tz.value} className="text-xs">
-                    {tz.label}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-[280px] bg-popover text-popover-foreground border-border z-50">
+                <ScrollArea className="h-[260px]">
+                  {TIMEZONES.map((tz) => (
+                    <SelectItem 
+                      key={tz.value} 
+                      value={tz.value} 
+                      className="text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                    >
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </ScrollArea>
               </SelectContent>
             </Select>
           </div>
@@ -957,12 +963,18 @@ export default function Scheduled() {
         </div>
 
         <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-11 mb-4">
-            <TabsTrigger value="upcoming" className="text-sm font-medium">
+          <TabsList className="grid w-full grid-cols-2 h-11 mb-4 bg-muted">
+            <TabsTrigger 
+              value="upcoming" 
+              className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground"
+            >
               <Calendar className="w-4 h-4 mr-2" />
               Jadwal ({upcomingBroadcasts.length})
             </TabsTrigger>
-            <TabsTrigger value="past" className="text-sm font-medium">
+            <TabsTrigger 
+              value="past" 
+              className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground"
+            >
               <CheckCircle2 className="w-4 h-4 mr-2" />
               Riwayat ({pastBroadcasts.length})
             </TabsTrigger>
@@ -970,10 +982,10 @@ export default function Scheduled() {
 
           <TabsContent value="upcoming" className="space-y-4 mt-6">
             {upcomingBroadcasts.length === 0 ? (
-              <Card>
+              <Card className="bg-card border-border">
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Calendar className="w-12 h-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground text-center">
+                  <p className="text-foreground text-center font-medium">
                     Belum ada broadcast terjadwal
                   </p>
                   <p className="text-sm text-muted-foreground text-center mt-2">
@@ -992,10 +1004,10 @@ export default function Scheduled() {
 
           <TabsContent value="past" className="space-y-4 mt-6">
             {pastBroadcasts.length === 0 ? (
-              <Card>
+              <Card className="bg-card border-border">
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <CheckCircle2 className="w-12 h-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground text-center">
+                  <p className="text-foreground text-center font-medium">
                     Belum ada riwayat broadcast terjadwal
                   </p>
                 </CardContent>
@@ -1105,16 +1117,16 @@ export default function Scheduled() {
               <div className="space-y-6 p-4 md:p-6">
                 {/* Broadcast Info */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2 text-foreground">
                     <Info className="w-5 h-5 text-primary" />
                     Informasi Broadcast
                   </h3>
-                  <Card>
+                  <Card className="bg-card border-border">
                     <CardContent className="pt-6 space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label className="text-xs text-muted-foreground">Nama Campaign</Label>
-                          <p className="font-medium mt-1">{selectedBroadcast.name}</p>
+                          <p className="font-medium mt-1 text-foreground">{selectedBroadcast.name}</p>
                         </div>
                         <div>
                           <Label className="text-xs text-muted-foreground">Status</Label>
@@ -1129,19 +1141,19 @@ export default function Scheduled() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label className="text-xs text-muted-foreground">Dibuat</Label>
-                          <p className="text-sm mt-1">
+                          <p className="text-sm mt-1 text-foreground">
                             {formatDateTime(selectedBroadcast.created_at)}
                           </p>
                         </div>
                         <div>
                           <Label className="text-xs text-muted-foreground">Dijadwalkan</Label>
-                          <p className="text-sm mt-1">
+                          <p className="text-sm mt-1 text-foreground">
                             {selectedBroadcast.scheduled_at ? formatDateTime(selectedBroadcast.scheduled_at) : '-'}
                           </p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
                         <div className="text-center">
                           <Label className="text-xs text-muted-foreground">Target</Label>
                           <p className="text-2xl font-bold text-primary mt-1">
@@ -1167,11 +1179,11 @@ export default function Scheduled() {
 
                 {/* Message Preview */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2 text-foreground">
                     <Send className="w-5 h-5 text-primary" />
                     Preview Pesan
                   </h3>
-                  <Card>
+                  <Card className="bg-card border-border">
                     <CardContent className="pt-6">
                       {selectedBroadcast.media_url && (
                         <div className="mb-4">
@@ -1182,7 +1194,7 @@ export default function Scheduled() {
                           />
                         </div>
                       )}
-                      <p className="whitespace-pre-wrap text-sm">{selectedBroadcast.message}</p>
+                      <p className="whitespace-pre-wrap text-sm text-foreground">{selectedBroadcast.message}</p>
                     </CardContent>
                   </Card>
                 </div>

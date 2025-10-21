@@ -3,14 +3,97 @@ import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 // Default timezone untuk Indonesia (Jakarta)
 export const DEFAULT_TIMEZONE = 'Asia/Jakarta';
 
-// Daftar timezone yang tersedia
+// Daftar timezone yang tersedia - lengkap untuk seluruh dunia
 export const TIMEZONES = [
+  // Asia - Indonesia
   { value: 'Asia/Jakarta', label: 'WIB - Jakarta (UTC+7)' },
   { value: 'Asia/Makassar', label: 'WITA - Makassar (UTC+8)' },
   { value: 'Asia/Jayapura', label: 'WIT - Jayapura (UTC+9)' },
-  { value: 'Asia/Kuala_Lumpur', label: 'Malaysia (UTC+8)' },
+  
+  // Asia - Southeast
   { value: 'Asia/Singapore', label: 'Singapore (UTC+8)' },
-  { value: 'UTC', label: 'UTC (UTC+0)' },
+  { value: 'Asia/Kuala_Lumpur', label: 'Malaysia (UTC+8)' },
+  { value: 'Asia/Bangkok', label: 'Bangkok (UTC+7)' },
+  { value: 'Asia/Manila', label: 'Manila (UTC+8)' },
+  { value: 'Asia/Ho_Chi_Minh', label: 'Ho Chi Minh (UTC+7)' },
+  
+  // Asia - East
+  { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)' },
+  { value: 'Asia/Seoul', label: 'Seoul (UTC+9)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (UTC+8)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong (UTC+8)' },
+  { value: 'Asia/Taipei', label: 'Taipei (UTC+8)' },
+  
+  // Asia - South
+  { value: 'Asia/Kolkata', label: 'India (UTC+5:30)' },
+  { value: 'Asia/Dhaka', label: 'Bangladesh (UTC+6)' },
+  { value: 'Asia/Karachi', label: 'Pakistan (UTC+5)' },
+  
+  // Asia - Middle East
+  { value: 'Asia/Dubai', label: 'Dubai (UTC+4)' },
+  { value: 'Asia/Riyadh', label: 'Saudi Arabia (UTC+3)' },
+  { value: 'Asia/Jerusalem', label: 'Israel (UTC+2)' },
+  { value: 'Asia/Istanbul', label: 'Istanbul (UTC+3)' },
+  
+  // Australia & Pacific
+  { value: 'Australia/Sydney', label: 'Sydney (UTC+10/+11)' },
+  { value: 'Australia/Melbourne', label: 'Melbourne (UTC+10/+11)' },
+  { value: 'Australia/Perth', label: 'Perth (UTC+8)' },
+  { value: 'Pacific/Auckland', label: 'New Zealand (UTC+12/+13)' },
+  
+  // Europe - West
+  { value: 'Europe/London', label: 'London (GMT/UTC+1)' },
+  { value: 'Europe/Dublin', label: 'Dublin (GMT/UTC+1)' },
+  { value: 'Europe/Lisbon', label: 'Lisbon (GMT/UTC+1)' },
+  
+  // Europe - Central
+  { value: 'Europe/Paris', label: 'Paris (UTC+1/+2)' },
+  { value: 'Europe/Berlin', label: 'Berlin (UTC+1/+2)' },
+  { value: 'Europe/Amsterdam', label: 'Amsterdam (UTC+1/+2)' },
+  { value: 'Europe/Brussels', label: 'Brussels (UTC+1/+2)' },
+  { value: 'Europe/Madrid', label: 'Madrid (UTC+1/+2)' },
+  { value: 'Europe/Rome', label: 'Rome (UTC+1/+2)' },
+  { value: 'Europe/Zurich', label: 'Zurich (UTC+1/+2)' },
+  { value: 'Europe/Vienna', label: 'Vienna (UTC+1/+2)' },
+  { value: 'Europe/Prague', label: 'Prague (UTC+1/+2)' },
+  { value: 'Europe/Stockholm', label: 'Stockholm (UTC+1/+2)' },
+  { value: 'Europe/Copenhagen', label: 'Copenhagen (UTC+1/+2)' },
+  { value: 'Europe/Oslo', label: 'Oslo (UTC+1/+2)' },
+  
+  // Europe - East
+  { value: 'Europe/Athens', label: 'Athens (UTC+2/+3)' },
+  { value: 'Europe/Helsinki', label: 'Helsinki (UTC+2/+3)' },
+  { value: 'Europe/Warsaw', label: 'Warsaw (UTC+1/+2)' },
+  { value: 'Europe/Bucharest', label: 'Bucharest (UTC+2/+3)' },
+  { value: 'Europe/Moscow', label: 'Moscow (UTC+3)' },
+  
+  // Americas - North
+  { value: 'America/New_York', label: 'New York (UTC-5/-4)' },
+  { value: 'America/Chicago', label: 'Chicago (UTC-6/-5)' },
+  { value: 'America/Denver', label: 'Denver (UTC-7/-6)' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles (UTC-8/-7)' },
+  { value: 'America/Anchorage', label: 'Alaska (UTC-9/-8)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii (UTC-10)' },
+  { value: 'America/Toronto', label: 'Toronto (UTC-5/-4)' },
+  { value: 'America/Vancouver', label: 'Vancouver (UTC-8/-7)' },
+  { value: 'America/Mexico_City', label: 'Mexico City (UTC-6/-5)' },
+  
+  // Americas - South
+  { value: 'America/Sao_Paulo', label: 'São Paulo (UTC-3/-2)' },
+  { value: 'America/Buenos_Aires', label: 'Buenos Aires (UTC-3)' },
+  { value: 'America/Santiago', label: 'Santiago (UTC-4/-3)' },
+  { value: 'America/Lima', label: 'Lima (UTC-5)' },
+  { value: 'America/Bogota', label: 'Bogotá (UTC-5)' },
+  
+  // Africa
+  { value: 'Africa/Cairo', label: 'Cairo (UTC+2)' },
+  { value: 'Africa/Johannesburg', label: 'Johannesburg (UTC+2)' },
+  { value: 'Africa/Lagos', label: 'Lagos (UTC+1)' },
+  { value: 'Africa/Nairobi', label: 'Nairobi (UTC+3)' },
+  
+  // UTC/GMT
+  { value: 'UTC', label: 'UTC/GMT (UTC+0)' },
+  { value: 'Etc/GMT', label: 'GMT (UTC+0)' },
 ];
 
 /**
