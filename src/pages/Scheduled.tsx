@@ -513,8 +513,8 @@ export default function Scheduled() {
                 Buat Broadcast Terjadwal
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-full md:max-w-2xl h-[100dvh] md:h-auto max-h-[90vh] p-0 gap-0">
-              <div className="sticky top-0 z-10 bg-background border-b px-4 md:px-6 py-4">
+            <DialogContent className="max-w-full md:max-w-2xl h-[100dvh] md:h-auto max-h-[90vh] p-0 gap-0 flex flex-col">
+              <div className="flex-shrink-0 bg-background border-b px-4 md:px-6 py-4">
                 <div className="flex items-start justify-between gap-4">
                   <DialogHeader className="flex-1">
                     <DialogTitle className="text-lg md:text-xl">Buat Broadcast Terjadwal</DialogTitle>
@@ -533,8 +533,8 @@ export default function Scheduled() {
                   </Button>
                 </div>
               </div>
-              <form onSubmit={handleCreate} className="flex flex-col flex-1 min-h-0">
-                <ScrollArea className="flex-1 h-[calc(100dvh-180px)] md:h-auto">
+              <form onSubmit={handleCreate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <ScrollArea className="flex-1 overflow-y-auto">
                   <div className="space-y-4 md:space-y-6 p-4 md:p-6">
                     <div className="space-y-2">
                     <Label htmlFor="name" className="text-base md:text-sm">Nama Campaign</Label>
