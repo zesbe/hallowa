@@ -264,6 +264,8 @@ async function connectWhatsApp(device) {
             if (pairingCodeRequested) return; // avoid duplicate requests
             const phone = String(deviceData.phone_for_pairing).replace(/\D/g, '');
             console.log('📱 Requesting pairing code for:', phone);
+            // Small delay to satisfy WA precondition timing
+            await new Promise((r) => setTimeout(r, 1200));
             requestPairCodeWithRetry(phone, 1);
           } else {
             // QR method
