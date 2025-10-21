@@ -45,6 +45,14 @@ export const Broadcast = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Check for quick message from template
+    const quickMessage = sessionStorage.getItem("quick-message");
+    if (quickMessage) {
+      setFormData((prev) => ({ ...prev, message: quickMessage }));
+      setDialogOpen(true);
+      sessionStorage.removeItem("quick-message");
+    }
   }, []);
 
   const fetchData = async () => {
@@ -334,34 +342,49 @@ export const Broadcast = () => {
             return (
               <Card key={broadcast.id}>
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>{broadcast.name}</CardTitle>
-                      <CardDescription className="mt-2">
-                        {broadcast.message.substring(0, 100)}...
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="truncate">{broadcast.name}</CardTitle>
+                      <CardDescription className="mt-2 line-clamp-2">
+                        {broadcast.message}
                       </CardDescription>
                     </div>
-                    <Badge className={getStatusColor(broadcast.status)}>
+                    <Badge className={getStatusColor(broadcast.status)} variant="secondary">
                       <StatusIcon className="w-3 h-3 mr-1" />
                       {broadcast.status}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm">
-                    <div>
-                      <p className="text-muted-foreground text-[10px] md:text-xs">Terkirim</p>
-                      <p className="text-base md:text-lg font-semibold">{broadcast.sent_count}</p>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-3 gap-2 text-xs md:text-sm">
+                    <div className="text-center p-2 bg-muted/50 rounded-md">
+                      <p className="text-muted-foreground text-[10px] md:text-xs mb-1">Terkirim</p>
+                      <p className="text-base md:text-lg font-semibold text-success">{broadcast.sent_count}</p>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground text-[10px] md:text-xs">Gagal</p>
-                      <p className="text-base md:text-lg font-semibold">{broadcast.failed_count}</p>
+                    <div className="text-center p-2 bg-muted/50 rounded-md">
+                      <p className="text-muted-foreground text-[10px] md:text-xs mb-1">Gagal</p>
+                      <p className="text-base md:text-lg font-semibold text-destructive">{broadcast.failed_count}</p>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground text-[10px] md:text-xs">Dibuat</p>
-                      <p className="text-xs md:text-sm">{new Date(broadcast.created_at).toLocaleDateString()}</p>
+                    <div className="text-center p-2 bg-muted/50 rounded-md">
+                      <p className="text-muted-foreground text-[10px] md:text-xs mb-1">Total</p>
+                      <p className="text-base md:text-lg font-semibold">{broadcast.sent_count + broadcast.failed_count}</p>
                     </div>
                   </div>
+                  {broadcast.status === "draft" && (
+                    <Button className="w-full" size="lg">
+                      <Send className="w-4 h-4 mr-2" />
+                      Kirim Sekarang
+                    </Button>
+                  )}
+                  {broadcast.status === "processing" && (
+                    <Button className="w-full" variant="secondary" size="lg" disabled>
+                      <Clock className="w-4 h-4 mr-2 animate-spin" />
+                      Sedang Mengirim...
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground text-center">
+                    Dibuat: {new Date(broadcast.created_at).toLocaleDateString()} {new Date(broadcast.created_at).toLocaleTimeString()}
+                  </p>
                 </CardContent>
               </Card>
             );

@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { FloatingActionButton } from "./FloatingActionButton";
 
 interface LayoutProps {
   children: ReactNode;
@@ -28,6 +29,9 @@ export const Layout = ({ children }: LayoutProps) => {
       
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
+      
+      {/* Floating Action Button */}
+      <FloatingActionButton />
     </div>
   );
 };

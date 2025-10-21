@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, FileText, Trash2, Copy } from "lucide-react";
+import { Plus, FileText, Trash2, Copy, Send } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ interface Template {
 }
 
 export const Templates = () => {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -90,6 +92,12 @@ export const Templates = () => {
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
     toast.success("Template berhasil disalin");
+  };
+
+  const handleUseTemplate = (template: Template) => {
+    sessionStorage.setItem("quick-message", template.content);
+    navigate("/broadcast");
+    toast.success("Template siap digunakan di broadcast");
   };
 
   return (
@@ -172,26 +180,36 @@ export const Templates = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground line-clamp-3">
+                <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
                   {template.content}
                 </p>
-                <div className="flex gap-2">
+                <div className="space-y-2">
                   <Button
-                    onClick={() => handleCopy(template.content)}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
+                    onClick={() => handleUseTemplate(template)}
+                    className="w-full"
+                    size="lg"
                   >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy
+                    <Send className="w-4 h-4 mr-2" />
+                    Gunakan Template
                   </Button>
-                  <Button
-                    onClick={() => handleDelete(template.id)}
-                    variant="destructive"
-                    size="sm"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleCopy(template.content)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy
+                    </Button>
+                    <Button
+                      onClick={() => handleDelete(template.id)}
+                      variant="destructive"
+                      size="sm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
