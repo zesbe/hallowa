@@ -4,7 +4,7 @@ if (!global.crypto) {
   global.crypto = webcrypto;
 }
 
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion, Browsers, initAuthCreds, BufferJSON } = require('@whiskeysockets/baileys');
 const { createClient } = require('@supabase/supabase-js');
 const qrcode = require('qrcode-terminal');
 const QRCode = require('qrcode');
@@ -71,11 +71,7 @@ async function startService() {
           
           if (stuckTime > 120) {
             console.log(`⚠️ Device ${device.device_name} stuck in connecting for ${stuckTime}s - clearing session`);
-            const fs = require('fs');
-            const authPath = `./auth_info_${device.id}`;
-            if (fs.existsSync(authPath)) {
-              fs.rmSync(authPath, { recursive: true, force: true });
-            }
+            // Clear persisted session in DB (no filesystem auth used anymore)
             await supabase.from('devices').update({ 
               status: 'disconnected',
               qr_code: null,
@@ -108,13 +104,9 @@ async function startService() {
           activeSockets.delete(deviceId);
           // Clean auth on explicit disconnect
           try {
-            const fs = require('fs');
-            const authPath = `./auth_info_${deviceId}`;
-            if (fs.existsSync(authPath)) {
-              fs.rmSync(authPath, { recursive: true, force: true });
-            }
+            // Filesystem auth removed. Clear session in DB on explicit disconnect
             if (device) {
-              await supabase.from('devices').update({ qr_code: null }).eq('id', deviceId);
+              await supabase.from('devices').update({ qr_code: null, session_data: null }).eq('id', deviceId);
             }
           } catch (e) {
             console.error('❌ Error cleaning auth on disconnect:', e);
@@ -149,16 +141,67 @@ async function startService() {
   console.log('💓 Health check ping started (every 30 seconds)');
 }
 
+// Auth state persisted in Supabase (survives Railway restarts)
+async function useSupabaseAuthState(deviceId) {
+  let creds, keys;
+  try {
+    const { data } = await supabase
+      .from('devices')
+      .select('session_data')
+      .eq('id', deviceId)
+      .maybeSingle();
+
+    const stored = data?.session_data || {};
+    creds = stored.creds ? JSON.parse(JSON.stringify(stored.creds), BufferJSON.reviver) : initAuthCreds();
+    keys = stored.keys ? JSON.parse(JSON.stringify(stored.keys), BufferJSON.reviver) : {};
+  } catch (e) {
+    console.error('❌ Failed loading session from Supabase:', e);
+    creds = initAuthCreds();
+    keys = {};
+  }
+
+  const persist = async () => {
+    const sessionData = {
+      creds: JSON.parse(JSON.stringify(creds, BufferJSON.replacer)),
+      keys: JSON.parse(JSON.stringify(keys, BufferJSON.replacer)),
+      saved_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from('devices')
+      .update({ session_data: sessionData })
+      .eq('id', deviceId);
+    if (error) console.error('❌ Failed saving session to Supabase:', error);
+  };
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = keys[type] || {};
+          const result = {};
+          for (const id of ids) result[id] = data[id] || null;
+          return result;
+        },
+        set: async (data) => {
+          for (const type of Object.keys(data)) {
+            keys[type] = keys[type] || {};
+            Object.assign(keys[type], data[type]);
+          }
+          await persist();
+        },
+      },
+    },
+    saveCreds: persist,
+  };
+}
+
+
 async function connectWhatsApp(device) {
   console.log(`📱 Connecting device: ${device.device_name} (${device.id})`);
 
   try {
-    const authPath = `./auth_info_${device.id}`;
-    const fs = require('fs');
-    if (!fs.existsSync(authPath)) {
-      fs.mkdirSync(authPath, { recursive: true });
-    }
-    const { state, saveCreds } = await useMultiFileAuthState(authPath);
+    const { state, saveCreds } = await useSupabaseAuthState(device.id);
 
     // Use latest WhatsApp Web version to avoid handshake issues
     const { version } = await fetchLatestBaileysVersion();
@@ -233,14 +276,7 @@ async function connectWhatsApp(device) {
             console.log('✅ Device status updated to connected');
           }
 
-          // Save session presence flag (we store files on disk; DB just has a marker)
-          const sessionData = { has_session: true, saved_at: new Date().toISOString() };
-          await supabase
-            .from('devices')
-            .update({ session_data: sessionData })
-            .eq('id', device.id);
-
-          console.log('💾 Session data saved');
+          // Session will be saved via auth state 'creds.update' & keys.set handlers
         } catch (connError) {
           console.error('❌ Error handling connection:', connError);
         }
@@ -272,16 +308,10 @@ async function connectWhatsApp(device) {
           } else if (code === 405) {
             // Likely bad auth: clear auth and set error
             console.log('❌ 405 Authentication failed - clearing session');
-            const fs = require('fs');
-            const authPath = `./auth_info_${device.id}`;
-            if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
-            await supabase.from('devices').update({ status: 'error', qr_code: null }).eq('id', device.id);
+            await supabase.from('devices').update({ status: 'error', qr_code: null, session_data: null }).eq('id', device.id);
           } else if (loggedOut) {
             console.log('👋 Logged out - clearing session');
-            const fs = require('fs');
-            const authPath = `./auth_info_${device.id}`;
-            if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
-            await supabase.from('devices').update({ status: 'disconnected', phone_number: null, qr_code: null }).eq('id', device.id);
+            await supabase.from('devices').update({ status: 'disconnected', phone_number: null, qr_code: null, session_data: null }).eq('id', device.id);
           } else {
             // Other transient errors -> aggressive retry
             console.log('⚠️ Transient error - aggressive retry in 500ms');
@@ -300,7 +330,9 @@ async function connectWhatsApp(device) {
     });
 
     // Save credentials whenever they update
-    sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', async () => {
+      try { await saveCreds(); } catch (e) { console.error('❌ saveCreds error:', e); }
+    });
 
     // Handle messages (optional - for future message handling)
     sock.ev.on('messages.upsert', async ({ messages }) => {
