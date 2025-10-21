@@ -576,7 +576,7 @@ export default function Scheduled() {
   return (
     <Layout>
       <div className="space-y-4 md:space-y-8">
-      <div className="space-y-4">
+        <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-1">Jadwal Broadcast</h1>
@@ -1021,7 +1021,6 @@ export default function Scheduled() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
       </div>
 
       {/* Edit Schedule Dialog */}
