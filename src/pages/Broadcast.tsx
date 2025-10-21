@@ -65,7 +65,6 @@ export const Broadcast = () => {
     device_id: "",
     target_contacts: [] as string[],
     media_url: null as string | null,
-    scheduled_at: null as string | null,
   });
 
   useEffect(() => {
@@ -127,9 +126,10 @@ export const Broadcast = () => {
 
   const fetchData = async () => {
     try {
-      const { data: broadcastData } = await supabase
+    const { data: broadcastData } = await supabase
         .from("broadcasts")
         .select("*")
+        .is("scheduled_at", null)
         .order("created_at", { ascending: false });
 
       const { data: deviceData } = await supabase
@@ -171,7 +171,6 @@ export const Broadcast = () => {
         name: formData.name,
         message: formData.message,
         media_url: formData.media_url,
-        scheduled_at: formData.scheduled_at,
         target_contacts: allTargets,
         status: "draft",
       });
@@ -180,7 +179,7 @@ export const Broadcast = () => {
 
       toast.success("Broadcast berhasil dibuat");
       setDialogOpen(false);
-      setFormData({ name: "", message: "", device_id: "", target_contacts: [], media_url: null, scheduled_at: null });
+      setFormData({ name: "", message: "", device_id: "", target_contacts: [], media_url: null });
       setManualNumbers([]);
       setSelectedContacts([]);
       setCurrentNumber("");
@@ -480,9 +479,9 @@ export const Broadcast = () => {
       <div className="space-y-4 md:space-y-8">
         <div className="flex flex-col gap-3">
           <div>
-            <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-1 md:mb-2">Broadcast</h1>
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-1 md:mb-2">Broadcast Pesan</h1>
             <p className="text-sm md:text-base text-muted-foreground">
-              Kirim pesan ke banyak kontak sekaligus
+              Kirim pesan langsung ke banyak kontak sekaligus
             </p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -581,19 +580,6 @@ export const Broadcast = () => {
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="scheduled">Jadwalkan Pengiriman (Opsional)</Label>
-                  <Input
-                    id="scheduled"
-                    type="datetime-local"
-                    value={formData.scheduled_at || ""}
-                    onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value || null })}
-                    min={new Date().toISOString().slice(0, 16)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Kosongkan untuk kirim langsung, atau atur waktu untuk kirim otomatis
-                  </p>
-                </div>
 
                 <div className="space-y-2">
                   <Label>Penerima</Label>
@@ -695,7 +681,7 @@ export const Broadcast = () => {
         </div>
 
         <div className="grid grid-cols-1 gap-4">
-          {broadcasts.length === 0 ? (
+          {broadcasts.filter(b => !b.scheduled_at).length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <Send className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
@@ -705,7 +691,7 @@ export const Broadcast = () => {
               </CardContent>
             </Card>
           ) : (
-            broadcasts.map((broadcast) => {
+            broadcasts.filter(b => !b.scheduled_at).map((broadcast) => {
             const StatusIcon = getStatusIcon(broadcast.status);
             return (
               <Card key={broadcast.id}>
@@ -717,24 +703,13 @@ export const Broadcast = () => {
                          {broadcast.message}
                        </CardDescription>
                        <div className="flex flex-wrap gap-2 mt-2">
-                         {broadcast.media_url && (
-                           <Badge variant="outline" className="text-xs">
-                             <ImageIcon className="w-3 h-3 mr-1" />
-                             Media terlampir
-                           </Badge>
-                         )}
-                         {broadcast.scheduled_at && broadcast.status === 'draft' && (
-                           <Badge variant="outline" className="text-xs">
-                             <Clock className="w-3 h-3 mr-1" />
-                             {new Date(broadcast.scheduled_at).toLocaleString('id-ID', {
-                               day: '2-digit',
-                               month: 'short',
-                               hour: '2-digit',
-                               minute: '2-digit'
-                             })}
-                           </Badge>
-                         )}
-                       </div>
+                          {broadcast.media_url && (
+                            <Badge variant="outline" className="text-xs">
+                              <ImageIcon className="w-3 h-3 mr-1" />
+                              Media terlampir
+                            </Badge>
+                          )}
+                        </div>
                      </div>
                      <div className="flex items-center gap-2">
                        <Badge className={getStatusColor(broadcast.status)} variant="secondary">
@@ -773,12 +748,6 @@ export const Broadcast = () => {
                             <Download className="mr-2 h-4 w-4" />
                             Export Data
                           </DropdownMenuItem>
-                          {broadcast.status === "draft" && (
-                            <DropdownMenuItem>
-                              <Calendar className="mr-2 h-4 w-4" />
-                              Jadwalkan
-                            </DropdownMenuItem>
-                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             onClick={() => confirmDelete(broadcast.id)}
