@@ -8,6 +8,8 @@
  * @param {Object} pairingCodeRequested - Object with timestamp to track when code was requested
  * @returns {Promise<Object>} - Returns object with handled flag and timestamp
  */
+const pairingLocks = global.pairingLocks || (global.pairingLocks = new Map());
+
 async function handlePairingCode(sock, device, supabase, readyToRequest, pairingCodeRequested) {
   try {
     // Only generate pairing code if not already registered
@@ -49,24 +51,41 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
 
     // Format phone number - must be in E.164 format without plus sign
     // Example: +1 (234) 567-8901 -> 12345678901
-    const rawPhone = String(deviceData.phone_for_pairing).replace(/\D/g, '');
+    const digits = String(deviceData.phone_for_pairing).replace(/\D/g, '');
+    let e164 = digits;
+    // Heuristic for Indonesian numbers: 08xxxx -> 628xxxx
+    if (e164.startsWith('0')) {
+      e164 = '62' + e164.slice(1);
+    }
     
-    // Validate phone number format
-    if (!rawPhone || rawPhone.length < 10) {
+    // Validate phone number format (E.164 length 10-15)
+    if (!e164 || e164.length < 10 || e164.length > 15) {
       console.error('❌ Invalid phone number format:', deviceData.phone_for_pairing);
       await supabase.from('devices').update({ 
         status: 'error',
-        pairing_code: 'Invalid phone number - must be at least 10 digits' 
+        pairing_code: 'Invalid phone (E.164 without +), contoh: 628123456789' 
       }).eq('id', device.id);
-      return false;
+      return { handled: false };
     }
 
-    console.log('📱 Requesting pairing code for:', rawPhone);
+    console.log('📱 Requesting pairing code for:', e164);
     
+    // Prevent concurrent pairing requests per device
+    if (pairingLocks.get(device.id)) {
+      console.log('⛔ Pairing request already in progress, skipping');
+      return { handled: false };
+    }
+    pairingLocks.set(device.id, true);
+
+    // Small delay to ensure handshake ready
+    if (readyToRequest) {
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
     try {
       // Request pairing code from Baileys
       // User must: Open WhatsApp > Linked Devices > Link with phone number > Enter code
-      const code = await sock.requestPairingCode(rawPhone);
+      const code = await sock.requestPairingCode(e164);
       console.log('✅ Pairing code generated successfully:', code);
       
       // Save pairing code to database
@@ -84,8 +103,9 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
       console.log('⏰ Code will auto-refresh in 45 seconds');
       
       // Schedule auto-refresh after 45 seconds if not connected
-      scheduleCodeRefresh(sock, device, supabase, rawPhone);
+      scheduleCodeRefresh(sock, device, supabase, e164);
       
+      pairingLocks.delete(device.id);
       return { handled: true, timestamp: Date.now() };
     } catch (pairErr) {
       const status = pairErr?.output?.statusCode || pairErr?.status;
@@ -98,7 +118,7 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
         // Retry after short delay
         setTimeout(async () => {
           try {
-            const code = await sock.requestPairingCode(rawPhone);
+            const code = await sock.requestPairingCode(e164);
             console.log('✅ Pairing code generated (retry):', code);
             
             await supabase
@@ -111,7 +131,7 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
               .eq('id', device.id);
             
             console.log('✅ Pairing code saved (retry)');
-            scheduleCodeRefresh(sock, device, supabase, rawPhone);
+            scheduleCodeRefresh(sock, device, supabase, e164);
           } catch (retryErr) {
             console.error('❌ Retry failed:', retryErr?.message);
             await supabase.from('devices').update({ 
@@ -121,6 +141,7 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
           }
         }, 2000);
         
+        pairingLocks.delete(device.id);
         return { handled: true, timestamp: Date.now() }; // Return with timestamp
       } else {
         // Other errors
@@ -128,11 +149,13 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
           status: 'error',
           pairing_code: 'Failed to generate code: ' + (pairErr?.message || 'Unknown error')
         }).eq('id', device.id);
+        pairingLocks.delete(device.id);
         return { handled: false };
       }
     }
   } catch (error) {
     console.error('❌ Error handling pairing code:', error);
+    pairingLocks.delete(device.id);
     return { handled: false };
   }
 }
@@ -166,7 +189,11 @@ function scheduleCodeRefresh(sock, device, supabase, originalPhone) {
         latest?.connection_method === 'pairing' &&
         !sock.authState.creds.registered
       ) {
-        const refreshPhone = String(latest.phone_for_pairing || originalPhone).replace(/\D/g, '');
+        const digits2 = String(latest.phone_for_pairing || originalPhone).replace(/\D/g, '');
+        let refreshPhone = digits2;
+        if (refreshPhone.startsWith('0')) {
+          refreshPhone = '62' + refreshPhone.slice(1);
+        }
         console.log('⏳ Auto-refreshing pairing code for:', refreshPhone);
         
         const newCode = await sock.requestPairingCode(refreshPhone);
