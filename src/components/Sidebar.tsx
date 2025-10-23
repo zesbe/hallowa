@@ -18,6 +18,7 @@ import {
   DollarSign,
   Receipt,
   Key,
+  Settings,
   LogOut,
   Menu,
   X
@@ -52,6 +53,7 @@ const settingsItems = [
   { icon: DollarSign, label: "Daftar Harga", path: "/pricing" },
   { icon: Receipt, label: "Invoice", path: "/invoices" },
   { icon: Key, label: "API Key", path: "/api-keys" },
+  { icon: Settings, label: "Pengaturan Profile", path: "/settings" },
 ];
 
 interface SidebarProps {
@@ -167,16 +169,9 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
         </div>
       </div>
 
-      {/* Logout */}
+      {/* Footer */}
       <div className="p-4 border-t border-sidebar-border">
-        <Link
-          to="/settings"
-          className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          <span className="font-medium">Logout</span>
-        </Link>
-        <p className="text-xs text-muted-foreground text-center mt-3">© 2025 WATSAP.ID</p>
+        <p className="text-xs text-muted-foreground text-center">© 2025 WATSAP.ID</p>
       </div>
     </div>
   );
