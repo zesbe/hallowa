@@ -5,8 +5,8 @@
  * @param {Object} device - Device data from database
  * @param {Object} supabase - Supabase client
  * @param {boolean} readyToRequest - True when connection is 'connecting' or QR event emitted
- * @param {boolean} pairingCodeRequested - Flag to prevent duplicate requests
- * @returns {Promise<boolean>} - Returns true if pairing code was handled successfully
+ * @param {Object} pairingCodeRequested - Object with timestamp to track when code was requested
+ * @returns {Promise<Object>} - Returns object with handled flag and timestamp
  */
 async function handlePairingCode(sock, device, supabase, readyToRequest, pairingCodeRequested) {
   try {
@@ -16,9 +16,14 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
       return false;
     }
 
-    // Check if pairing code was already requested
+    // Allow re-requesting if previous code expired (more than 50 seconds ago)
     if (pairingCodeRequested) {
-      return false;
+      const now = Date.now();
+      const timeSinceRequest = (now - (pairingCodeRequested.timestamp || 0)) / 1000;
+      if (timeSinceRequest < 50) {
+        return false; // Still fresh, don't request again
+      }
+      console.log('⏰ Previous pairing code expired, generating new one...');
     }
 
     // Get device data to check connection method and phone number
@@ -76,11 +81,12 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
       
       console.log('✅ Pairing code saved to database');
       console.log('📱 Instructions: Open WhatsApp > Linked Devices > Link with phone number > Enter code:', code);
+      console.log('⏰ Code will auto-refresh in 45 seconds');
       
       // Schedule auto-refresh after 45 seconds if not connected
       scheduleCodeRefresh(sock, device, supabase, rawPhone);
       
-      return true;
+      return { handled: true, timestamp: Date.now() };
     } catch (pairErr) {
       const status = pairErr?.output?.statusCode || pairErr?.status;
       console.error('❌ Failed to generate pairing code:', status, pairErr?.message);
@@ -115,19 +121,19 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
           }
         }, 2000);
         
-        return true; // Return true because we're handling it with retry
+        return { handled: true, timestamp: Date.now() }; // Return with timestamp
       } else {
         // Other errors
         await supabase.from('devices').update({ 
           status: 'error',
           pairing_code: 'Failed to generate code: ' + (pairErr?.message || 'Unknown error')
         }).eq('id', device.id);
-        return false;
+        return { handled: false };
       }
     }
   } catch (error) {
     console.error('❌ Error handling pairing code:', error);
-    return false;
+    return { handled: false };
   }
 }
 

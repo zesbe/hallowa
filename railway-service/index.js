@@ -252,8 +252,8 @@ async function connectWhatsApp(device, isRecovery = false) {
 
     activeSockets.set(device.id, sock);
 
-    // Track if pairing code has been requested
-    let pairingCodeRequested = false;
+    // Track pairing code request status with timestamp
+    let pairingCodeRequested = null;
 
     // Handle connection updates
     sock.ev.on('connection.update', async (update) => {
@@ -274,9 +274,10 @@ async function connectWhatsApp(device, isRecovery = false) {
             deviceData?.phone_for_pairing
           ) {
             const readyToRequest = connection === 'connecting' || !!qr;
-            const handled = await handlePairingCode(sock, device, supabase, readyToRequest, pairingCodeRequested);
-            if (handled) {
-              pairingCodeRequested = true;
+            const result = await handlePairingCode(sock, device, supabase, readyToRequest, pairingCodeRequested);
+            if (result?.handled) {
+              pairingCodeRequested = { timestamp: result.timestamp };
+              console.log('✅ Pairing code request tracked:', new Date(result.timestamp).toISOString());
             }
           }
           // QR method - fallback when pairing not configured
