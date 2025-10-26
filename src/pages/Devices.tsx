@@ -229,38 +229,58 @@ export const Devices = () => {
       setConnectionStatus(method === 'qr' ? "generating_qr" : "generating_pairing");
       toast.info(method === 'qr' ? "Menghubungkan ke WhatsApp..." : "Membuat kode pairing...");
 
-      // Poll database for QR code or pairing code updates from Railway service
+      // Poll updates from DB and fetch ephemeral codes from Edge Function (Redis)
       const interval = setInterval(async () => {
-        const { data, error } = await supabase
+        // 1) Read latest device row
+        const { data: row, error: rowError } = await supabase
           .from("devices")
           .select("*")
           .eq("id", device.id)
           .single();
 
-        if (error) {
-          console.error("Polling error:", error);
+        if (rowError) {
+          console.error("Polling error:", rowError);
           return;
         }
 
-        if (data) {
-          // Update selected device with latest data
-          setSelectedDevice(data);
+        // 2) Fetch QR/Pairing codes from Edge Function (stored in Redis)
+        let qrCode: string | null = null;
+        let pairingCode: string | null = null;
+        try {
+          const { data: codes } = await supabase.functions.invoke('get-device-qr', {
+            body: { deviceId: device.id },
+          });
+          qrCode = codes?.qrCode ?? null;
+          pairingCode = codes?.pairingCode ?? null;
+        } catch (fnErr) {
+          // Non-fatal: just log
+          console.debug('get-device-qr error (non-fatal):', fnErr);
+        }
 
-          // Check for QR code
-          if (data.qr_code && data.status === "connecting" && method === 'qr') {
-            setConnectionStatus("qr_ready");
-            setQrExpiry(60);
-            toast.success("QR Code siap! Scan sekarang");
+        if (row) {
+          // Merge ephemeral codes into local state (do NOT write to DB)
+          const merged: any = { ...row, qr_code: qrCode, pairing_code: pairingCode };
+          setSelectedDevice(merged);
+
+          // QR flow
+          if (qrCode && row.status === "connecting" && method === 'qr') {
+            if (connectionStatus !== "qr_ready" || merged.qr_code !== selectedDevice?.qr_code) {
+              setConnectionStatus("qr_ready");
+              setQrExpiry(60);
+              toast.success("QR Code siap! Scan sekarang");
+            }
           }
 
-          // Check for pairing code
-          if (data.pairing_code && data.status === "connecting" && method === 'pairing') {
-            setConnectionStatus("pairing_ready");
-            toast.success("Kode pairing siap! Masukkan di WhatsApp");
+          // Pairing flow
+          if (pairingCode && row.status === "connecting" && method === 'pairing') {
+            if (connectionStatus !== "pairing_ready" || merged.pairing_code !== selectedDevice?.pairing_code) {
+              setConnectionStatus("pairing_ready");
+              toast.success("Kode pairing siap! Masukkan di WhatsApp");
+            }
           }
 
-          // Check if connected
-          if (data.status === "connected") {
+          // Connected
+          if (row.status === "connected") {
             setConnectionStatus("connected");
             toast.success("WhatsApp berhasil terhubung!");
             clearInterval(interval);
@@ -273,8 +293,8 @@ export const Devices = () => {
             }, 1500);
           }
 
-          // Check for error
-          if (data.status === "error") {
+          // Error
+          if (row.status === "error") {
             setConnectionStatus("error");
             toast.error("Connection error. Silakan coba lagi.");
             clearInterval(interval);

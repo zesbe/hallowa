@@ -26,9 +26,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get device ID from URL query params
-    const url = new URL(req.url);
-    const deviceId = url.searchParams.get('deviceId');
+    // Get deviceId from POST body (preferred) or URL query param fallback
+    let deviceId: string | null = null;
+    try {
+      if (req.method === 'POST') {
+        const body = await req.json().catch(() => null);
+        deviceId = body?.deviceId ?? null;
+      }
+    } catch (_) {
+      // ignore parse error and fallback to query param
+    }
+    if (!deviceId) {
+      const url = new URL(req.url);
+      deviceId = url.searchParams.get('deviceId');
+    }
 
     if (!deviceId) {
       return new Response(
