@@ -167,35 +167,47 @@ export type Database = {
       }
       contacts: {
         Row: {
+          contact_count: number | null
           created_at: string
           device_id: string
           group_members: Json | null
           id: string
           is_group: boolean | null
+          last_contacted_at: string | null
           name: string | null
+          notes: string | null
           phone_number: string
+          tags: string[] | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          contact_count?: number | null
           created_at?: string
           device_id: string
           group_members?: Json | null
           id?: string
           is_group?: boolean | null
+          last_contacted_at?: string | null
           name?: string | null
+          notes?: string | null
           phone_number: string
+          tags?: string[] | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          contact_count?: number | null
           created_at?: string
           device_id?: string
           group_members?: Json | null
           id?: string
           is_group?: boolean | null
+          last_contacted_at?: string | null
           name?: string | null
+          notes?: string | null
           phone_number?: string
+          tags?: string[] | null
           updated_at?: string
           user_id?: string
         }

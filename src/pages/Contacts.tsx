@@ -13,7 +13,7 @@ import { ContactFilter } from "@/components/ContactFilter";
 import { ContactImport } from "@/components/contacts/ContactImport";
 import { GroupManagement } from "@/components/contacts/GroupManagement";
 import { ContactCard } from "@/components/contacts/ContactCard";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 interface Contact {
   id: string;
@@ -22,10 +22,15 @@ interface Contact {
   is_group: boolean;
   group_members: any;
   created_at: string;
+  tags?: string[];
+  notes?: string | null;
+  last_contacted_at?: string | null;
+  contact_count?: number;
 }
 
 export const Contacts = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,14 +48,19 @@ export const Contacts = () => {
 
   useEffect(() => {
     fetchContacts();
-    
-    // Check URL params for filter
-    const params = new URLSearchParams(window.location.search);
-    const filterParam = params.get('filter');
+  }, []);
+
+  // Update filter when URL changes
+  useEffect(() => {
+    const filterParam = searchParams.get('filter');
     if (filterParam === 'groups') {
       setActiveFilter('groups');
+    } else if (filterParam === 'individuals') {
+      setActiveFilter('individuals');
+    } else {
+      setActiveFilter('all');
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     let filtered = contacts;
@@ -345,7 +355,15 @@ export const Contacts = () => {
 
         <ContactFilter
           activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
+          onFilterChange={(filter) => {
+            setActiveFilter(filter);
+            // Update URL params
+            if (filter === 'all') {
+              navigate('/contacts');
+            } else {
+              navigate(`/contacts?filter=${filter}`);
+            }
+          }}
           counts={{
             all: stats.total,
             groups: stats.groups,
@@ -409,6 +427,7 @@ export const Contacts = () => {
                 onEdit={() => openEditDialog(contact)}
                 onDelete={() => handleDelete(contact.id)}
                 onSendMessage={() => handleSendMessage(contact)}
+                onUpdate={fetchContacts}
               />
             ))}
           </div>

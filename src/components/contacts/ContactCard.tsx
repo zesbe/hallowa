@@ -2,7 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users, User, Edit, Trash2, MessageSquare } from "lucide-react";
+import { Users, User, Edit, Trash2, MessageSquare, Clock } from "lucide-react";
+import { ContactTags } from "./ContactTags";
+import { ContactNotes } from "./ContactNotes";
+import { formatDistanceToNow } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 
 interface Contact {
   id: string;
@@ -11,6 +15,10 @@ interface Contact {
   is_group: boolean;
   group_members?: any[];
   created_at: string;
+  tags?: string[];
+  notes?: string | null;
+  last_contacted_at?: string | null;
+  contact_count?: number;
 }
 
 interface ContactCardProps {
@@ -20,6 +28,7 @@ interface ContactCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onSendMessage?: () => void;
+  onUpdate?: () => void;
 }
 
 export function ContactCard({ 
@@ -28,9 +37,17 @@ export function ContactCard({
   onSelect, 
   onEdit, 
   onDelete,
-  onSendMessage 
+  onSendMessage,
+  onUpdate
 }: ContactCardProps) {
   const memberCount = contact.group_members?.length || 0;
+  const tags = contact.tags || [];
+  const lastContacted = contact.last_contacted_at 
+    ? formatDistanceToNow(new Date(contact.last_contacted_at), { 
+        addSuffix: true, 
+        locale: localeId 
+      })
+    : null;
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all hover:border-primary/50">
@@ -73,6 +90,34 @@ export function ContactCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
+        {/* Tags and Notes */}
+        <div className="space-y-1 pb-2 border-b">
+          <ContactTags 
+            contactId={contact.id} 
+            tags={tags}
+            onTagsUpdate={onUpdate || (() => {})}
+          />
+          <div className="flex items-center gap-2">
+            <ContactNotes
+              contactId={contact.id}
+              notes={contact.notes}
+              contactName={contact.name || contact.phone_number}
+              onNotesUpdate={onUpdate || (() => {})}
+            />
+            {lastContacted && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                {lastContacted}
+              </div>
+            )}
+            {contact.contact_count && contact.contact_count > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {contact.contact_count} pesan
+              </Badge>
+            )}
+          </div>
+        </div>
+
         {contact.is_group && contact.group_members && contact.group_members.length > 0 && (
           <div className="text-xs text-muted-foreground space-y-1 pb-2 border-b">
             <p className="font-medium">Anggota:</p>
