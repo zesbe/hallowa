@@ -44,7 +44,7 @@ export const Contacts = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
-  const [activeFilter, setActiveFilter] = useState<"all" | "groups" | "individuals">("individuals");
+  const [activeFilter, setActiveFilter] = useState<"all" | "groups" | "individuals">("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
@@ -69,10 +69,8 @@ export const Contacts = () => {
       setActiveFilter('groups');
     } else if (filterParam === 'individuals') {
       setActiveFilter('individuals');
-    } else if (filterParam === 'all') {
-      setActiveFilter('all');
     } else {
-      setActiveFilter('individuals'); // default List Kontak = individuals only
+      setActiveFilter('all'); // default = all contacts
     }
   }, [searchParams]);
 

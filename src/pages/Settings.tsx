@@ -1,11 +1,11 @@
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Bell, Shield } from "lucide-react";
+import { User, Bell, Shield, Key, Webhook } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect } from "react";
@@ -175,6 +175,57 @@ export default function Settings() {
                   </Button>
                 </form>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Key className="w-5 h-5" />
+                API Management
+              </CardTitle>
+              <CardDescription>
+                Kelola API keys untuk integrasi dengan aplikasi lain
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  API Keys Akun
+                </h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Generate API keys untuk mengakses API WAPANELS dari aplikasi eksternal
+                </p>
+                <Link to="/api-keys">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Key className="w-4 h-4 mr-2" />
+                    Kelola API Keys
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <Webhook className="w-4 h-4" />
+                  Webhook Integrasi
+                </h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Atur webhook untuk menerima notifikasi real-time dari WhatsApp
+                </p>
+                <Link to="/webhooks">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Webhook className="w-4 h-4 mr-2" />
+                    Kelola Webhooks
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  💡 <strong>Tips:</strong> Gunakan API keys untuk integrasi dengan sistem CRM, e-commerce, atau aplikasi custom Anda.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

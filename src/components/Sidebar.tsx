@@ -31,8 +31,7 @@ const menuItems = [
   { icon: PlayCircle, label: "Video Tutorial", path: "/tutorial" },
   { icon: MessageSquare, label: "CRM Chat", path: "/crm-chat", badge: "New" },
   { icon: Radio, label: "Device Broadcast", path: "/devices" },
-  { icon: Users, label: "Grup Kontak", path: "/contacts?filter=groups" },
-  { icon: UserCircle, label: "List Kontak", path: "/contacts?filter=individuals" },
+  { icon: Users, label: "Kontak", path: "/contacts" },
   { icon: FileText, label: "Daftar Template", path: "/templates" },
 ];
 
@@ -46,6 +45,7 @@ const featuresItems = [
   { icon: Zap, label: "Kirim Cepat", path: "/quick-send" },
   { icon: Bot, label: "Chatbot (Auto Reply)", path: "/chatbot" },
   { icon: Webhook, label: "Webhook App", path: "/webhooks" },
+  { icon: Send, label: "Auto Post ke Grup", path: "/auto-post", badge: "New" },
 ];
 
 const settingsItems = [
