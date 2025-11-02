@@ -1,7 +1,7 @@
 {
-  "name": "WAPANELS - WhatsApp Multi-Device Management Platform",
-  "short_name": "WAPANELS",
-  "description": "Kelola multiple WhatsApp devices, broadcast messages, chatbot automation, dan lebih banyak lagi dalam satu platform profesional",
+  "name": "HalloWa - WhatsApp Bot Marketing Platform",
+  "short_name": "HalloWa",
+  "description": "Platform WhatsApp Bot Marketing profesional untuk kelola multiple devices, broadcast messages, chatbot automation dalam satu platform terpadu",
   "theme_color": "#10b981",
   "background_color": "#ffffff",
   "display": "standalone",
@@ -38,7 +38,7 @@
       "sizes": "1200x630",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "WAPANELS Dashboard"
+      "label": "HalloWa Dashboard"
     }
   ],
   "shortcuts": [

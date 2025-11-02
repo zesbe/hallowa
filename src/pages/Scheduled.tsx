@@ -615,23 +615,12 @@ export default function Scheduled() {
             </DialogTrigger>
             <DialogContent className="max-w-full md:max-w-2xl h-[100dvh] md:h-auto max-h-[90vh] p-0 gap-0 flex flex-col">
               <div className="flex-shrink-0 bg-background border-b px-4 md:px-6 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <DialogHeader className="flex-1">
-                    <DialogTitle className="text-lg md:text-xl">Buat Broadcast Terjadwal</DialogTitle>
-                    <DialogDescription className="text-sm">
-                      Atur jadwal pengiriman broadcast otomatis
-                    </DialogDescription>
-                  </DialogHeader>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setCreateDialogOpen(false)}
-                    className="h-8 w-8 rounded-full hover:bg-accent flex-shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+                <DialogHeader>
+                  <DialogTitle className="text-lg md:text-xl">Buat Broadcast Terjadwal</DialogTitle>
+                  <DialogDescription className="text-sm">
+                    Atur jadwal pengiriman broadcast otomatis
+                  </DialogDescription>
+                </DialogHeader>
               </div>
               <form onSubmit={handleCreate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
                 <ScrollArea className="flex-1 overflow-y-auto">
@@ -780,36 +769,42 @@ export default function Scheduled() {
                           onChange={(e) => setContactSearch(e.target.value)}
                           className="h-12 md:h-10 text-base"
                         />
-                        <ScrollArea className="h-64 md:h-64 border rounded-lg p-2">
+                         <ScrollArea className="h-64 md:h-64 border rounded-lg p-2">
                           <div className="space-y-1">
-                            {filteredContactList.map((contact) => (
-                              <div
-                                key={contact.id}
-                                className="flex items-center gap-3 p-3 md:p-2 hover:bg-accent rounded-lg cursor-pointer active:scale-[0.98] transition-all"
-                                onClick={() => toggleContact(contact.phone_number)}
-                              >
-                                <Checkbox
-                                  checked={selectedContacts.includes(contact.phone_number)}
-                                  onCheckedChange={() => toggleContact(contact.phone_number)}
-                                  className="h-5 w-5 md:h-4 md:w-4"
-                                />
-                                <div className="flex items-center gap-3 md:gap-2 flex-1 min-w-0">
-                                  {contact.is_group ? (
-                                    <Users className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground flex-shrink-0" />
-                                  ) : (
-                                    <div className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-base md:text-sm font-medium truncate">
-                                      {contact.name || contact.phone_number}
-                                    </p>
-                                    <p className="text-sm md:text-xs text-muted-foreground truncate">
-                                      {contact.phone_number}
-                                    </p>
+                            {filteredContactList.length === 0 ? (
+                              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                                <Users className="w-12 h-12 mb-2 opacity-20" />
+                                <p className="text-sm">Tidak ada kontak ditemukan</p>
+                              </div>
+                            ) : (
+                              filteredContactList.map((contact) => (
+                                <div
+                                  key={contact.id}
+                                  className="flex items-center gap-3 p-3 md:p-2 hover:bg-accent rounded-lg cursor-pointer active:scale-[0.98] transition-all"
+                                  onClick={() => toggleContact(contact.phone_number)}
+                                >
+                                  <Checkbox
+                                    checked={selectedContacts.includes(contact.phone_number)}
+                                    className="h-5 w-5 md:h-4 md:w-4"
+                                  />
+                                  <div className="flex items-center gap-3 md:gap-2 flex-1 min-w-0">
+                                    {contact.is_group ? (
+                                      <Users className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground flex-shrink-0" />
+                                    ) : (
+                                      <div className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-base md:text-sm font-medium truncate">
+                                        {contact.name || contact.phone_number}
+                                      </p>
+                                      <p className="text-sm md:text-xs text-muted-foreground truncate">
+                                        {contact.phone_number}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
+                              ))
+                            )}
                           </div>
                         </ScrollArea>
                       </TabsContent>
