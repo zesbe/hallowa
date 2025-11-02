@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, BookOpen, Code, Send, Users, MessageSquare, Zap, CheckCircle2 } from "lucide-react";
+import { Copy, BookOpen, Code, Send, Users, MessageSquare, Zap, CheckCircle2, Key } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -101,7 +101,7 @@ const EndpointCard = ({
 };
 
 export default function ApiDocs() {
-  const baseUrl = "https://ierdfxgeectqoekugyvb.supabase.co";
+  const baseUrl = "https://api.hallowa.com";
   
   return (
     <Layout>
@@ -109,14 +109,14 @@ export default function ApiDocs() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-2">
-              Dokumentasi API WAPANELS
+              Dokumentasi API HalloWa
             </h1>
             <p className="text-sm md:text-base text-muted-foreground">
-              Panduan lengkap untuk mengintegrasikan WAPANELS dengan aplikasi Anda
+              Panduan lengkap untuk mengintegrasikan HalloWa WhatsApp Bot Marketing dengan aplikasi Anda
             </p>
           </div>
           <Badge className="bg-gradient-to-r from-primary to-secondary text-white">
-            v1.0
+            v2.0
           </Badge>
         </div>
 
@@ -165,14 +165,43 @@ export default function ApiDocs() {
         <Card>
           <CardHeader>
             <CardTitle>Authentication</CardTitle>
-            <CardDescription>Semua API request memerlukan autentikasi menggunakan API Key</CardDescription>
+            <CardDescription>HalloWa mendukung 2 jenis API Key untuk keamanan maksimal</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm">
-              Tambahkan API key Anda ke header setiap request:
-            </p>
-            <CodeBlock code={`Authorization: Bearer YOUR_API_KEY
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  1. Account API Key (User Level)
+                </h4>
+                <p className="text-sm mb-3">
+                  API key yang di-generate dari halaman API Keys. Digunakan untuk autentikasi tingkat akun dengan akses penuh ke semua device dan data Anda.
+                </p>
+                <CodeBlock code={`Authorization: Bearer YOUR_ACCOUNT_API_KEY
 Content-Type: application/json`} />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Gunakan untuk: Manajemen device, contacts, broadcasts, dan fitur tingkat akun lainnya
+                </p>
+              </div>
+
+              <div className="p-4 bg-secondary/10 border border-secondary/20 rounded-lg">
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  2. Device API Key (Device Level)
+                </h4>
+                <p className="text-sm mb-3">
+                  API key unik untuk setiap device WhatsApp. Digunakan untuk autentikasi spesifik device dengan akses terbatas hanya untuk device tersebut.
+                </p>
+                <CodeBlock code={`x-api-key: YOUR_DEVICE_API_KEY
+Content-Type: application/json`} />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Gunakan untuk: Kirim pesan, cek status device tertentu (lebih aman untuk dibagikan ke tim)
+                </p>
+                <p className="text-xs text-muted-foreground mt-2 font-semibold">
+                  📍 Device API Key tersedia di Device Details &gt; API Key pada setiap device
+                </p>
+              </div>
+            </div>
             
             <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
               <p className="text-sm text-amber-600 dark:text-amber-400">
@@ -216,10 +245,9 @@ Content-Type: application/json`} />
 
             <EndpointCard
               method="POST"
-              endpoint={`${baseUrl}/functions/v1/send-message`}
+              endpoint="/api/v1/send-message"
               description="Kirim pesan teks ke satu atau lebih nomor WhatsApp"
               parameters={[
-                { name: "device_id", type: "string", required: true, description: "ID device WhatsApp yang akan digunakan" },
                 { name: "to", type: "string", required: true, description: "Nomor tujuan (format: 628xxx)" },
                 { name: "message", type: "string", required: true, description: "Isi pesan yang akan dikirim" },
                 { name: "delay", type: "number", required: false, description: "Delay dalam detik (default: 3)" },
@@ -230,25 +258,23 @@ Content-Type: application/json`} />
   "data": {
     "message_id": "msg_123456",
     "status": "sent",
-    "timestamp": "2025-01-28T10:30:00Z"
+    "timestamp": "2025-11-02T10:30:00Z"
   }
 }`}
-              example={`curl -X POST ${baseUrl}/functions/v1/send-message \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+              example={`curl -X POST ${baseUrl}/api/v1/send-message \\
+  -H "x-api-key: YOUR_DEVICE_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "device_id": "device_123",
     "to": "628123456789",
-    "message": "Halo! Ini pesan dari API WAPANELS"
+    "message": "Halo! Ini pesan dari API HalloWa"
   }'`}
             />
 
             <EndpointCard
               method="POST"
-              endpoint={`${baseUrl}/functions/v1/send-media`}
+              endpoint="/api/v1/send-media"
               description="Kirim pesan dengan media (gambar, video, dokumen)"
               parameters={[
-                { name: "device_id", type: "string", required: true, description: "ID device WhatsApp" },
                 { name: "to", type: "string", required: true, description: "Nomor tujuan" },
                 { name: "media_url", type: "string", required: true, description: "URL media yang akan dikirim" },
                 { name: "caption", type: "string", required: false, description: "Caption untuk media" },
@@ -262,11 +288,10 @@ Content-Type: application/json`} />
     "media_id": "media_345"
   }
 }`}
-              example={`curl -X POST ${baseUrl}/functions/v1/send-media \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+              example={`curl -X POST ${baseUrl}/api/v1/send-media \\
+  -H "x-api-key: YOUR_DEVICE_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "device_id": "device_123",
     "to": "628123456789",
     "media_url": "https://example.com/image.jpg",
     "caption": "Lihat gambar ini!",
@@ -284,13 +309,14 @@ Content-Type: application/json`} />
 
             <EndpointCard
               method="GET"
-              endpoint={`${baseUrl}/rest/v1/contacts`}
+              endpoint="/api/v1/contacts"
               description="Ambil daftar semua kontak"
               parameters={[
                 { name: "is_group", type: "boolean", required: false, description: "Filter berdasarkan tipe (true=grup, false=individu)" },
                 { name: "limit", type: "number", required: false, description: "Jumlah data per halaman (default: 100)" },
               ]}
               response={`{
+  "success": true,
   "data": [
     {
       "id": "contact_123",
@@ -300,16 +326,16 @@ Content-Type: application/json`} />
       "tags": ["customer", "vip"],
       "created_at": "2025-01-20T08:00:00Z"
     }
-  ]
+  ],
+  "count": 1
 }`}
-              example={`curl -X GET "${baseUrl}/rest/v1/contacts?is_group=eq.false" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "apikey: YOUR_SUPABASE_ANON_KEY"`}
+              example={`curl -X GET "${baseUrl}/api/v1/contacts?is_group=false" \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY"`}
             />
 
             <EndpointCard
               method="POST"
-              endpoint={`${baseUrl}/rest/v1/contacts`}
+              endpoint="/api/v1/contacts"
               description="Tambah kontak baru"
               parameters={[
                 { name: "name", type: "string", required: true, description: "Nama kontak" },
@@ -318,14 +344,16 @@ Content-Type: application/json`} />
                 { name: "tags", type: "array", required: false, description: "Array tag untuk kontak" },
               ]}
               response={`{
-  "id": "contact_456",
-  "name": "Jane Smith",
-  "phone_number": "628987654321",
-  "created_at": "2025-01-28T10:35:00Z"
+  "success": true,
+  "data": {
+    "id": "contact_456",
+    "name": "Jane Smith",
+    "phone_number": "628987654321",
+    "created_at": "2025-11-02T10:35:00Z"
+  }
 }`}
-              example={`curl -X POST ${baseUrl}/rest/v1/contacts \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "apikey: YOUR_SUPABASE_ANON_KEY" \\
+              example={`curl -X POST ${baseUrl}/api/v1/contacts \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "Jane Smith",
@@ -336,7 +364,7 @@ Content-Type: application/json`} />
 
             <EndpointCard
               method="DELETE"
-              endpoint={`${baseUrl}/rest/v1/contacts?id=eq.{contact_id}`}
+              endpoint="/api/v1/contacts/{contact_id}"
               description="Hapus kontak"
               parameters={[
                 { name: "contact_id", type: "string", required: true, description: "ID kontak yang akan dihapus" },
@@ -345,9 +373,8 @@ Content-Type: application/json`} />
   "success": true,
   "message": "Kontak berhasil dihapus"
 }`}
-              example={`curl -X DELETE "${baseUrl}/rest/v1/contacts?id=eq.contact_123" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "apikey: YOUR_SUPABASE_ANON_KEY"`}
+              example={`curl -X DELETE "${baseUrl}/api/v1/contacts/contact_123" \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY"`}
             />
           </TabsContent>
 
@@ -360,42 +387,44 @@ Content-Type: application/json`} />
 
             <EndpointCard
               method="POST"
-              endpoint={`${baseUrl}/rest/v1/broadcasts`}
+              endpoint="/api/v1/broadcasts"
               description="Buat broadcast baru"
               parameters={[
                 { name: "name", type: "string", required: true, description: "Nama broadcast" },
                 { name: "message", type: "string", required: true, description: "Isi pesan broadcast" },
-                { name: "target_contacts", type: "array", required: true, description: "Array ID kontak tujuan" },
-                { name: "device_id", type: "string", required: true, description: "ID device untuk mengirim" },
+                { name: "target_contacts", type: "array", required: true, description: "Array nomor telepon tujuan" },
                 { name: "scheduled_at", type: "datetime", required: false, description: "Waktu terjadwal (ISO 8601)" },
+                { name: "delay_seconds", type: "number", required: false, description: "Delay antar pesan (default: 5)" },
               ]}
               response={`{
-  "id": "broadcast_789",
-  "name": "Promo Akhir Tahun",
-  "status": "draft",
-  "target_count": 150,
-  "created_at": "2025-01-28T10:40:00Z"
+  "success": true,
+  "data": {
+    "id": "broadcast_789",
+    "name": "Promo Akhir Tahun",
+    "status": "draft",
+    "target_count": 150,
+    "created_at": "2025-11-02T10:40:00Z"
+  }
 }`}
-              example={`curl -X POST ${baseUrl}/rest/v1/broadcasts \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "apikey: YOUR_SUPABASE_ANON_KEY" \\
+              example={`curl -X POST ${baseUrl}/api/v1/broadcasts \\
+  -H "x-api-key: YOUR_DEVICE_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "Promo Akhir Tahun",
     "message": "Diskon 50% untuk semua produk!",
-    "target_contacts": ["contact_1", "contact_2"],
-    "device_id": "device_123"
+    "target_contacts": ["628123456789", "628987654321"]
   }'`}
             />
 
             <EndpointCard
               method="GET"
-              endpoint={`${baseUrl}/rest/v1/broadcasts`}
+              endpoint="/api/v1/broadcasts"
               description="Ambil daftar broadcast"
               parameters={[
-                { name: "status", type: "string", required: false, description: "Filter by status: draft, sending, completed" },
+                { name: "status", type: "string", required: false, description: "Filter by status: draft, processing, completed" },
               ]}
               response={`{
+  "success": true,
   "data": [
     {
       "id": "broadcast_789",
@@ -403,13 +432,12 @@ Content-Type: application/json`} />
       "status": "completed",
       "sent_count": 148,
       "failed_count": 2,
-      "created_at": "2025-01-28T10:40:00Z"
+      "created_at": "2025-11-02T10:40:00Z"
     }
   ]
 }`}
-              example={`curl -X GET "${baseUrl}/rest/v1/broadcasts?status=eq.completed" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "apikey: YOUR_SUPABASE_ANON_KEY"`}
+              example={`curl -X GET "${baseUrl}/api/v1/broadcasts?status=completed" \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY"`}
             />
           </TabsContent>
 
@@ -422,7 +450,7 @@ Content-Type: application/json`} />
 
             <EndpointCard
               method="GET"
-              endpoint={`${baseUrl}/functions/v1/api-device-management`}
+              endpoint="/api/v1/devices"
               description="Ambil daftar semua device WhatsApp"
               response={`{
   "success": true,
@@ -432,20 +460,21 @@ Content-Type: application/json`} />
       "device_name": "WhatsApp Bisnis 1",
       "status": "connected",
       "phone_number": "628123456789",
+      "api_key": "w93km47effr35ji44odupxyr1wfh3lxs",
       "webhook_url": "https://yourapp.com/webhook",
-      "created_at": "2025-01-28T10:00:00Z",
-      "last_connected_at": "2025-01-28T10:30:00Z"
+      "created_at": "2025-11-02T10:00:00Z",
+      "last_connected_at": "2025-11-02T10:30:00Z"
     }
   ],
   "count": 1
 }`}
-              example={`curl -X GET ${baseUrl}/functions/v1/api-device-management \\
-  -H "x-api-key: YOUR_API_KEY"`}
+              example={`curl -X GET ${baseUrl}/api/v1/devices \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY"`}
             />
 
             <EndpointCard
               method="GET"
-              endpoint={`${baseUrl}/functions/v1/api-device-management/{device_id}`}
+              endpoint="/api/v1/devices/{device_id}"
               description="Dapatkan detail device tertentu"
               parameters={[
                 { name: "device_id", type: "string", required: true, description: "ID device yang ingin diambil" },
@@ -457,44 +486,50 @@ Content-Type: application/json`} />
     "device_name": "WhatsApp Bisnis 1",
     "status": "connected",
     "phone_number": "628123456789",
+    "api_key": "w93km47effr35ji44odupxyr1wfh3lxs",
     "webhook_url": "https://yourapp.com/webhook",
     "session_data": { ... },
-    "created_at": "2025-01-28T10:00:00Z"
+    "created_at": "2025-11-02T10:00:00Z"
   }
 }`}
-              example={`curl -X GET ${baseUrl}/functions/v1/api-device-management/device_123 \\
-  -H "x-api-key: YOUR_API_KEY"`}
+              example={`curl -X GET ${baseUrl}/api/v1/devices/device_123 \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY"`}
             />
 
             <EndpointCard
               method="POST"
-              endpoint={`${baseUrl}/functions/v1/api-device-management`}
+              endpoint="/api/v1/devices"
               description="Buat device WhatsApp baru"
               parameters={[
                 { name: "device_name", type: "string", required: true, description: "Nama device" },
                 { name: "webhook_url", type: "string", required: false, description: "URL webhook untuk notifikasi" },
+                { name: "connection_method", type: "string", required: false, description: "Metode koneksi: qr atau pairing (default: qr)" },
+                { name: "phone_for_pairing", type: "string", required: false, description: "Nomor WA untuk pairing code (jika method=pairing)" },
               ]}
               response={`{
   "success": true,
   "data": {
     "id": "device_456",
     "device_name": "WhatsApp Bisnis 2",
+    "api_key": "auto_generated_device_api_key",
     "status": "disconnected",
-    "created_at": "2025-01-28T11:00:00Z"
+    "created_at": "2025-11-02T11:00:00Z"
   }
 }`}
-              example={`curl -X POST ${baseUrl}/functions/v1/api-device-management \\
-  -H "x-api-key: YOUR_API_KEY" \\
+              example={`curl -X POST ${baseUrl}/api/v1/devices \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "device_name": "WhatsApp Bisnis 2",
+    "connection_method": "pairing",
+    "phone_for_pairing": "628123456789",
     "webhook_url": "https://yourapp.com/webhook"
   }'`}
             />
 
             <EndpointCard
               method="PUT"
-              endpoint={`${baseUrl}/functions/v1/api-device-management/{device_id}`}
+              endpoint="/api/v1/devices/{device_id}"
               description="Update device WhatsApp"
               parameters={[
                 { name: "device_id", type: "string", required: true, description: "ID device yang akan diupdate" },
@@ -507,11 +542,11 @@ Content-Type: application/json`} />
     "id": "device_123",
     "device_name": "WhatsApp Bisnis Updated",
     "webhook_url": "https://newurl.com/webhook",
-    "updated_at": "2025-01-28T11:30:00Z"
+    "updated_at": "2025-11-02T11:30:00Z"
   }
 }`}
-              example={`curl -X PUT ${baseUrl}/functions/v1/api-device-management/device_123 \\
-  -H "x-api-key: YOUR_API_KEY" \\
+              example={`curl -X PUT ${baseUrl}/api/v1/devices/device_123 \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "device_name": "WhatsApp Bisnis Updated"
@@ -520,7 +555,7 @@ Content-Type: application/json`} />
 
             <EndpointCard
               method="DELETE"
-              endpoint={`${baseUrl}/functions/v1/api-device-management/{device_id}`}
+              endpoint="/api/v1/devices/{device_id}"
               description="Hapus device WhatsApp"
               parameters={[
                 { name: "device_id", type: "string", required: true, description: "ID device yang akan dihapus" },
@@ -529,13 +564,13 @@ Content-Type: application/json`} />
   "success": true,
   "message": "Device deleted successfully"
 }`}
-              example={`curl -X DELETE ${baseUrl}/functions/v1/api-device-management/device_123 \\
-  -H "x-api-key: YOUR_API_KEY"`}
+              example={`curl -X DELETE ${baseUrl}/api/v1/devices/device_123 \\
+  -H "Authorization: Bearer YOUR_ACCOUNT_API_KEY"`}
             />
 
             <EndpointCard
               method="POST"
-              endpoint={`${baseUrl}/functions/v1/api-device-management/{device_id}/logout`}
+              endpoint="/api/v1/devices/{device_id}/logout"
               description="Logout device WhatsApp (hapus session)"
               parameters={[
                 { name: "device_id", type: "string", required: true, description: "ID device yang akan di-logout" },
@@ -549,24 +584,8 @@ Content-Type: application/json`} />
     "phone_number": null
   }
 }`}
-              example={`curl -X POST ${baseUrl}/functions/v1/api-device-management/device_123/logout \\
-  -H "x-api-key: YOUR_API_KEY"`}
-            />
-
-            <EndpointCard
-              method="GET"
-              endpoint={`${baseUrl}/functions/v1/get-device-qr`}
-              description="Dapatkan QR code untuk pairing device (Deprecated: Gunakan UI di web app)"
-              parameters={[
-                { name: "device_id", type: "string", required: true, description: "ID device yang akan di-pair" },
-              ]}
-              response={`{
-  "success": true,
-  "qr_code": "data:image/png;base64,iVBORw0KGgoAAAA...",
-  "expires_in": 60
-}`}
-              example={`curl -X GET "${baseUrl}/functions/v1/get-device-qr?device_id=device_123" \\
-  -H "Authorization: Bearer YOUR_API_KEY"`}
+              example={`curl -X POST ${baseUrl}/api/v1/devices/device_123/logout \\
+  -H "x-api-key: YOUR_DEVICE_API_KEY"`}
             />
           </TabsContent>
 
@@ -584,7 +603,7 @@ Content-Type: application/json`} />
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm">
-                  Atur URL webhook Anda di halaman Webhooks. WAPANELS akan mengirim POST request ke URL tersebut ketika ada event.
+                  Atur URL webhook Anda di halaman Webhooks. HalloWa akan mengirim POST request ke URL tersebut ketika ada event.
                 </p>
                 
                 <div>

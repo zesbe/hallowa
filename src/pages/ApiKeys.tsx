@@ -71,6 +71,7 @@ export const ApiKeys = () => {
       const keyPrefix = getApiKeyPrefix(plaintextKey);
 
       const { error } = await supabase.from("api_keys").insert({
+        user_id: user.id, // Required untuk RLS policy
         key_name: formData.key_name,
         api_key: '', // Legacy field, will be removed
         api_key_hash: hashedKey,
@@ -298,8 +299,8 @@ export const ApiKeys = () => {
                 <Key className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Belum Ada API Key</h3>
-              <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                Generate API key pertama Anda untuk mulai mengintegrasikan WAPANELS dengan aplikasi lain
+              <p className="text-sm text-muted-foreground">
+                Generate API key pertama Anda untuk mulai mengintegrasikan HalloWa dengan aplikasi lain
               </p>
               <div className="flex gap-2 justify-center">
                 <Button
