@@ -19,7 +19,12 @@ class WhatsAppPairingV2 {
   async startPairing(sock, device, supabase) {
     const deviceId = device.id;
     
-    console.log('🚀 Starting NEW pairing session for:', device.device_name);
+    console.log('');
+    console.log('=====================================');
+    console.log('🚀 STARTING NEW PAIRING SESSION');
+    console.log('Device:', device.device_name);
+    console.log('Device ID:', deviceId);
+    console.log('=====================================');
     
     // Step 1: Clean up any existing pairing session
     this.cleanupExistingSession(deviceId);
@@ -85,8 +90,8 @@ class WhatsAppPairingV2 {
         const waitTime = session.attempts === 1 ? 1000 : 3000 * session.attempts;
         await delay(waitTime);
         
-        // Check if socket is still valid
-        if (!sock || sock.ws?.readyState !== 1) {
+        // Check if socket exists (don't check readyState as it may not be exposed)
+        if (!sock) {
           throw new Error('Socket not ready');
         }
         
@@ -99,8 +104,11 @@ class WhatsAppPairingV2 {
         }
         
         // Request pairing code
-        console.log('🔐 Requesting pairing code from WhatsApp...');
+        console.log('🔐 Calling sock.requestPairingCode(' + phoneNumber + ')...');
+        
         const code = await sock.requestPairingCode(phoneNumber);
+        
+        console.log('🎆 Response received:', code ? 'Got code: ' + code : 'No code');
         
         if (!code) {
           throw new Error('No code received');
