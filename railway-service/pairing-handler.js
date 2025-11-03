@@ -131,7 +131,13 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
       console.log(`✅ Pairing code generated: ${code}`);
       
       // Store in Redis with 10 minute TTL
-      await redis.setPairingCode(device.id, code, 600);
+      const redisStored = await redis.setPairingCode(device.id, code, 600);
+      
+      if (redisStored) {
+        console.log(`📦 Pairing code stored in Redis for device: ${device.id}`);
+      } else {
+        console.error('❌ Failed to store pairing code in Redis');
+      }
       
       // Update database status
       await supabase

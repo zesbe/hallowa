@@ -250,11 +250,24 @@ export const Devices = () => {
         let qrCode: string | null = null;
         let pairingCode: string | null = null;
         try {
-          const { data: codes } = await supabase.functions.invoke('get-device-qr', {
+          const { data: codes, error: fnError } = await supabase.functions.invoke('get-device-qr', {
             body: { deviceId: device.id },
           });
-          qrCode = codes?.qrCode ?? null;
-          pairingCode = codes?.pairingCode ?? null;
+          
+          if (fnError) {
+            console.warn('Edge function error:', fnError);
+          } else {
+            qrCode = codes?.qrCode ?? null;
+            pairingCode = codes?.pairingCode ?? null;
+            
+            // Debug logging
+            if (pairingCode) {
+              console.log('📱 Pairing code received:', pairingCode);
+            }
+            if (qrCode) {
+              console.log('📷 QR code received: [data URL]');
+            }
+          }
         } catch (fnErr) {
           // Non-fatal: just log
           console.debug('get-device-qr error (non-fatal):', fnErr);
@@ -276,9 +289,17 @@ export const Devices = () => {
 
           // Pairing flow
           if (pairingCode && row.status === "connecting" && method === 'pairing') {
+            console.log('🔐 Pairing check:', { 
+              hasPairingCode: !!pairingCode, 
+              code: pairingCode,
+              status: row.status, 
+              method, 
+              currentStatus: connectionStatus 
+            });
+            
             if (connectionStatus !== "pairing_ready" || merged.pairing_code !== selectedDevice?.pairing_code) {
               setConnectionStatus("pairing_ready");
-              toast.success("Kode pairing siap! Masukkan di WhatsApp");
+              toast.success(`Kode pairing siap: ${pairingCode}`);
             }
           }
 

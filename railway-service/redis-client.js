@@ -35,9 +35,16 @@ class RedisClient {
 
   // QR Code Management (Keep - temporary data)
   async setQRCode(deviceId, qrCode, ttl = 600) {
-    // TTL 10 minutes for QR codes (extended for better stability)
-    const key = `qr:${deviceId}`;
-    await this.execute(['SET', key, qrCode, 'EX', ttl]);
+    try {
+      // TTL 10 minutes for QR codes (extended for better stability)
+      const key = `qr:${deviceId}`;
+      const result = await this.execute(['SET', key, qrCode, 'EX', ttl]);
+      console.log(`Redis SET result for qr:${deviceId}:`, result);
+      return result === 'OK';
+    } catch (error) {
+      console.error('Redis setQRCode error:', error);
+      return false;
+    }
   }
 
   async getQRCode(deviceId) {
@@ -52,9 +59,16 @@ class RedisClient {
 
   // Pairing Code Management (Keep - temporary data)
   async setPairingCode(deviceId, pairingCode, ttl = 600) {
-    // TTL 10 minutes for pairing codes (extended for better stability)
-    const key = `pairing:${deviceId}`;
-    await this.execute(['SET', key, pairingCode, 'EX', ttl]);
+    try {
+      // TTL 10 minutes for pairing codes (extended for better stability)
+      const key = `pairing:${deviceId}`;
+      const result = await this.execute(['SET', key, pairingCode, 'EX', ttl]);
+      console.log(`Redis SET result for pairing:${deviceId}:`, result);
+      return result === 'OK';
+    } catch (error) {
+      console.error('Redis setPairingCode error:', error);
+      return false;
+    }
   }
 
   async getPairingCode(deviceId) {
