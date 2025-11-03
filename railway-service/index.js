@@ -40,9 +40,9 @@ try {
 
 // Import handlers
 const { handleQRCode } = require('./qr-handler');
-const multiDevicePairing = require('./multi-device-pairing');
+const stablePairing = require('./pairing-stable');
 
-// No need to initialize - it's a singleton for multi-device support
+// Stable pairing handler - works like QR but with pairing codes
 
 // Supabase config
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -185,12 +185,15 @@ async function handleConnectionUpdate(sock, device, update, isPairing, saveCreds
     // Handle pairing or QR
     if (!sock.authState?.creds?.registered) {
       if (isPairing) {
-        // Handle pairing
+        // Handle pairing - only once per connection
         if (!sock.pairingAttempted) {
           sock.pairingAttempted = true;
-          const code = await multiDevicePairing.startPairing(sock, device, supabase);
+          console.log('🔐 Attempting pairing...');
+          const code = await stablePairing.generateCode(sock, device, supabase);
           if (code) {
-            console.log(`✅ Active pairing sessions: ${multiDevicePairing.getActiveSessions()}`);
+            console.log(`✅ Pairing code generated: ${code}`);
+          } else {
+            console.log('❌ Pairing failed - check device error message');
           }
         }
       } else if (qr) {
@@ -218,9 +221,10 @@ async function handleConnectionUpdate(sock, device, update, isPairing, saveCreds
       console.log('🔌 Disconnected:', device.device_name);
       activeSockets.delete(device.id);
       
-      // Reset pairing attempts on disconnect
+      // Clear pairing data on disconnect
       if (isPairing) {
-        multiDevicePairing.resetDeviceAttempts(device.id);
+        stablePairing.clearDevice(device.id);
+        sock.pairingAttempted = false; // Reset flag for next connection
       }
       
       const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
