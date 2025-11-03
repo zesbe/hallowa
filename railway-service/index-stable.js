@@ -40,10 +40,10 @@ try {
 
 // Import handlers
 const { handleQRCode } = require('./qr-handler');
-const WhatsAppPairingV2 = require('./pairing-v2');
+const PairingHandler = require('./pairing-handler');
 
 // Initialize pairing handler
-const pairingHandler = new WhatsAppPairingV2(redis);
+const pairingHandler = new PairingHandler(redis);
 
 // Supabase config
 const supabaseUrl = process.env.SUPABASE_URL;
