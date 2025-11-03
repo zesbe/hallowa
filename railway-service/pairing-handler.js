@@ -102,14 +102,15 @@ async function handlePairingCode(sock, device, supabase, readyToRequest, pairing
     await new Promise(r => setTimeout(r, 1500 + (retryCount * 500)));
 
     try {
-      // Check WebSocket state
-      if (sock.ws && sock.ws.readyState !== 1) {
-        console.log(`⚠️ WebSocket not ready (state: ${sock.ws.readyState}), waiting...`);
+      // Skip WebSocket check - Baileys doesn't expose ws directly
+      // Just ensure socket exists and has the method
+      if (!sock || typeof sock.requestPairingCode !== 'function') {
+        console.log('⚠️ Socket not ready, waiting...');
         await new Promise(r => setTimeout(r, 2000));
         
-        // Recheck after wait
-        if (sock.ws && sock.ws.readyState !== 1) {
-          throw new Error(`WebSocket not ready after wait (state: ${sock.ws.readyState})`);
+        // Recheck
+        if (!sock || typeof sock.requestPairingCode !== 'function') {
+          throw new Error('Socket not ready - requestPairingCode not available');
         }
       }
 
