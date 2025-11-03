@@ -40,10 +40,9 @@ try {
 
 // Import handlers
 const { handleQRCode } = require('./qr-handler');
-const PairingHandler = require('./pairing-handler');
+const multiDevicePairing = require('./multi-device-pairing');
 
-// Initialize pairing handler
-const pairingHandler = new PairingHandler(redis);
+// No need to initialize - it's a singleton for multi-device support
 
 // Supabase config
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -189,10 +188,9 @@ async function handleConnectionUpdate(sock, device, update, isPairing, saveCreds
         // Handle pairing
         if (!sock.pairingAttempted) {
           sock.pairingAttempted = true;
-          console.log('🔐 Starting pairing process...');
-          const code = await pairingHandler.startPairing(sock, device, supabase);
+          const code = await multiDevicePairing.startPairing(sock, device, supabase);
           if (code) {
-            console.log('✅ Pairing code generated:', code);
+            console.log(`✅ Active pairing sessions: ${multiDevicePairing.getActiveSessions()}`);
           }
         }
       } else if (qr) {
