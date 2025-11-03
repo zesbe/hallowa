@@ -37,7 +37,7 @@ import { QuickTemplates } from "@/components/QuickTemplates";
 import { CSVImport } from "@/components/CSVImport";
 import { BroadcastStats } from "@/components/BroadcastStats";
 import { BroadcastSafetyWarning } from "@/components/BroadcastSafetyWarning";
-import { MessageVariables } from "@/components/MessageVariables";
+import { MessageVariablesEnhanced } from "@/components/MessageVariablesEnhanced";
 import { previewMessageVariables } from "@/utils/messageVariables";
 
 interface Broadcast {
@@ -645,7 +645,7 @@ export const Broadcast = () => {
                     </div>
 
                     {/* Message Variables Helper */}
-                    <MessageVariables onInsert={handleInsertVariable} />
+                    <MessageVariablesEnhanced onInsert={handleInsertVariable} />
 
                     {/* Custom Variables */}
                     <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
