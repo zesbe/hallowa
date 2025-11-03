@@ -908,8 +908,11 @@ export const Devices = () => {
                 </div>
               )}
               
-              {(connectionStatus === "pairing_ready" || connectionStatus === "pairing_expired") && selectedDevice?.pairing_code && (
+              {(connectionStatus === "pairing_ready" || connectionStatus === "pairing_expired") && (
                 <div className="space-y-3 sm:space-y-4 w-full">
+                  {/* Debug log */}
+                  {console.log('Displaying pairing code:', selectedDevice?.pairing_code)}
+                  
                   {/* Pairing Code Display Card */}
                   <div className="relative bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 p-4 sm:p-6 rounded-xl border-2 border-green-200 dark:border-green-800">
                     <div className={`${connectionStatus === "pairing_expired" ? "opacity-30" : ""}`}>
@@ -922,12 +925,16 @@ export const Devices = () => {
                         <div className="flex flex-col items-center gap-3">
                           {/* Large Code Display */}
                           <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-gray-100 font-mono tracking-[0.2em] sm:tracking-[0.3em] select-all">
-                            {selectedDevice.pairing_code.match(/.{1,4}/g)?.map((chunk, idx) => (
-                              <span key={idx}>
-                                {idx > 0 && <span className="text-gray-400 dark:text-gray-600 mx-1 sm:mx-2">-</span>}
-                                <span className="text-green-600 dark:text-green-400">{chunk}</span>
-                              </span>
-                            ))}
+                            {selectedDevice?.pairing_code ? (
+                              selectedDevice.pairing_code.match(/.{1,4}/g)?.map((chunk, idx) => (
+                                <span key={idx}>
+                                  {idx > 0 && <span className="text-gray-400 dark:text-gray-600 mx-1 sm:mx-2">-</span>}
+                                  <span className="text-green-600 dark:text-green-400">{chunk}</span>
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-500">Loading...</span>
+                            )}
                           </div>
                           
                           {/* Copy Button */}
@@ -935,8 +942,12 @@ export const Devices = () => {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              copyToClipboard(selectedDevice.pairing_code);
-                              toast.success('Kode berhasil disalin!');
+                              if (selectedDevice?.pairing_code) {
+                                copyToClipboard(selectedDevice.pairing_code);
+                                toast.success('Kode berhasil disalin!');
+                              } else {
+                                toast.error('Kode belum tersedia');
+                              }
                             }}
                             className="border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
                           >
