@@ -11,10 +11,10 @@ const redis = require('./redis-client');
 
 // Import handlers for QR and Pairing code
 const { handleQRCode } = require('./qr-handler');
-const WhatsAppPairing = require('./pairing');
+const WhatsAppPairingV2 = require('./pairing-v2');
 
-// Initialize pairing handler
-const pairingHandler = new WhatsAppPairing(redis);
+// Initialize pairing handler V2
+const pairingHandler = new WhatsAppPairingV2(redis);
 
 // Supabase config dari environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -355,20 +355,18 @@ async function connectWhatsApp(device, isRecovery = false) {
           if (pairingMode && !pairingAttempted) {
             // Only attempt pairing when we have a connection update
             if (connection === 'connecting' || qr) {
-              console.log('🔐 Attempting pairing code generation...');
+              console.log('🔐 Initiating pairing V2...');
               pairingAttempted = true;
               
-              // Clear pairing handler cache for fresh attempt
-              pairingHandler.clearPairing(device.id);
-              
-              const pairingCode = await pairingHandler.generatePairingCode(sock, device, supabase);
+              // Use new V2 pairing with better session management
+              const pairingCode = await pairingHandler.startPairing(sock, device, supabase);
               
               if (pairingCode) {
-                console.log('✅ Pairing code generated successfully');
+                console.log('✅ Pairing code generated successfully via V2');
                 // Don't generate QR when pairing succeeds
                 return;
               } else {
-                console.log('⚠️ Pairing failed, will fall back to QR if available');
+                console.log('⚠️ Pairing V2 failed, will fall back to QR if available');
               }
             }
           }
