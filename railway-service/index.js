@@ -360,7 +360,7 @@ async function connectWhatsApp(device, isRecovery = false) {
           // QR method - only if NOT in pairing mode
           if (qr && !pairingMode) {
             console.log('📷 QR mode - generating QR code...');
-            await handleQRCode(sock, device, supabase, qr);
+            await handleQRCode(device, qr, supabase);
           } else if (qr && pairingMode) {
             console.log('⛔ Skipping QR generation - device is in pairing mode');
           }
