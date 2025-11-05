@@ -186,22 +186,22 @@ export const Auth = () => {
                   : "Sudah punya akun? Masuk"}
               </button>
               {isLogin && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/auth/reset-password")}
-                    className="text-sm text-primary hover:underline block w-full"
-                  >
-                    Lupa password?
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/admin/login")}
-                    className="text-sm text-muted-foreground hover:text-primary hover:underline block w-full"
-                  >
-                    Login sebagai Admin
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => navigate("/auth/reset-password")}
+                  className="text-sm text-primary hover:underline block w-full"
+                >
+                  Lupa password?
+                </button>
+              )}
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/admin/login")}
+                  className="text-sm text-muted-foreground hover:text-primary hover:underline block w-full"
+                >
+                  Login sebagai Admin
+                </button>
               )}
             </div>
           </form>

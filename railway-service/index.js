@@ -768,15 +768,36 @@ async function processBroadcasts() {
             let whatsappName = phoneNumber; // Default fallback
             try {
               const jid = phoneNumber.includes('@') ? phoneNumber : `${phoneNumber}@s.whatsapp.net`;
-              const [result] = await sock.onWhatsApp(jid);
-              if (result && result.exists) {
-                // Try to get contact info from WhatsApp
-                const contactFromWA = await sock.getNumberId(jid);
-                // Get push name or notify name from WhatsApp
-                whatsappName = result.notify || result.name || phoneNumber;
+              
+              // Try multiple methods to get WhatsApp profile name
+              // Method 1: Try to get from Baileys contact store (most reliable)
+              if (sock.store?.contacts && sock.store.contacts[jid]) {
+                const waContact = sock.store.contacts[jid];
+                whatsappName = waContact.notify || waContact.name || waContact.verifiedName || whatsappName;
+                console.log(`✓ Got WhatsApp name from store for ${phoneNumber}: ${whatsappName}`);
+              } else {
+                // Method 2: Check if number exists on WhatsApp
+                const [result] = await sock.onWhatsApp(jid);
+                if (result && result.exists) {
+                  // Try to get contact metadata
+                  try {
+                    // Fetch profile status which may contain name info
+                    const status = await sock.fetchStatus(jid).catch(() => null);
+                    if (status && status.status) {
+                      console.log(`✓ Got WhatsApp status for ${phoneNumber}`);
+                    }
+                    
+                    // The notify name is usually set after first interaction
+                    // For now, we use the phone number as fallback
+                    whatsappName = result.notify || phoneNumber;
+                    console.log(`✓ WhatsApp name for ${phoneNumber}: ${whatsappName}`);
+                  } catch (metaError) {
+                    console.log(`⚠️ Could not fetch WhatsApp metadata for ${phoneNumber}`);
+                  }
+                }
               }
             } catch (waError) {
-              console.log(`⚠️ Could not fetch WhatsApp name for ${phoneNumber}, using fallback`);
+              console.log(`⚠️ Could not fetch WhatsApp name for ${phoneNumber}, using fallback:`, waError.message);
             }
             
             // Process message variables for personalization
