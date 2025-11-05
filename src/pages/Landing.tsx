@@ -276,7 +276,7 @@ const Landing = () => {
           <div className="absolute -inset-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl blur-2xl opacity-20" />
           <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
             <img 
-              src="/api/placeholder/1200/700" 
+              src="/dashboard-preview.png" 
               alt="HalloWa Dashboard"
               className="w-full h-auto"
             />
