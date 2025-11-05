@@ -12,16 +12,27 @@ import {
   ArrowRight,
   Sparkles,
   Clock,
-  Globe
+  Globe,
+  Star,
+  X,
+  Check,
+  ChevronDown,
+  TrendingUp,
+  Smartphone
 } from "lucide-react";
 import AOS from 'aos';
 import 'aos/dist/aos.css';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const Landing = () => {
   const navigate = useNavigate();
   const [isReady, setIsReady] = useState(false);
 
-  // Initialize AOS animations
   useEffect(() => {
     AOS.init({
       duration: 800,
@@ -75,11 +86,63 @@ const Landing = () => {
     "24/7 Customer Support"
   ];
 
-  const stats = [
-    { icon: <Users className="w-8 h-8" />, value: "10,000+", label: "Active Users" },
-    { icon: <MessageSquare className="w-8 h-8" />, value: "50M+", label: "Messages Sent" },
-    { icon: <Globe className="w-8 h-8" />, value: "99.9%", label: "Uptime" },
-    { icon: <Clock className="w-8 h-8" />, value: "24/7", label: "Support" }
+  const testimonials = [
+    {
+      name: "Budi Santoso",
+      role: "Owner, TokoBagus.id",
+      avatar: "BS",
+      text: "HalloWa mengubah cara saya berbisnis! Closing rate naik 3x lipat dalam 2 bulan. ROI-nya luar biasa!",
+      rating: 5
+    },
+    {
+      name: "Siti Nurhaliza",
+      role: "Marketing Manager, Fashion Store",
+      avatar: "SN",
+      text: "Broadcast otomatis sangat membantu! Saya bisa reach 5000+ customer dalam hitungan menit. Game changer!",
+      rating: 5
+    },
+    {
+      name: "Ahmad Hidayat",
+      role: "CEO, Digital Agency",
+      avatar: "AH",
+      text: "Platform terbaik untuk manage client WhatsApp. Team saya jadi lebih produktif dan client lebih puas.",
+      rating: 5
+    }
+  ];
+
+  const comparison = [
+    { feature: "Kecepatan Broadcast", manual: "10 pesan/jam", hallowa: "1000+ pesan/jam" },
+    { feature: "Automasi Chat", manual: "Manual semua", hallowa: "AI Chatbot 24/7" },
+    { feature: "Analytics", manual: "Tidak ada", hallowa: "Real-time dashboard" },
+    { feature: "Multi-Device", manual: "1 device saja", hallowa: "Unlimited devices" },
+    { feature: "Customer Support", manual: "-", hallowa: "24/7 Support" },
+  ];
+
+  const faqs = [
+    {
+      question: "Apakah data saya aman di HalloWa?",
+      answer: "Sangat aman! Kami menggunakan enkripsi end-to-end dan server yang comply dengan standar internasional. Data Anda 100% terlindungi."
+    },
+    {
+      question: "Berapa banyak device yang bisa saya kelola?",
+      answer: "Tergantung paket yang Anda pilih. Paket Basic: 3 devices, Pro: 10 devices, Enterprise: Unlimited devices."
+    },
+    {
+      question: "Apakah ada free trial?",
+      answer: "Ya! Kami menyediakan free trial 7 hari dengan akses penuh ke semua fitur. Tidak perlu kartu kredit untuk memulai."
+    },
+    {
+      question: "Bagaimana cara setup device baru?",
+      answer: "Sangat mudah! Cukup scan QR code dari dashboard, dan device Anda langsung terhubung dalam 30 detik. Ada video tutorial lengkap juga."
+    },
+    {
+      question: "Apakah bisa kirim media (gambar, video, dokumen)?",
+      answer: "Tentu saja! HalloWa support semua jenis media termasuk gambar, video, dokumen PDF, dan file lainnya dalam broadcast."
+    },
+    {
+      question: "Bagaimana dengan customer support?",
+      answer: "Kami menyediakan 24/7 customer support via live chat, email, dan WhatsApp. Response time rata-rata kurang dari 5 menit."
+    }
   ];
 
   if (!isReady) {
@@ -88,7 +151,7 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-green-50/30 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      {/* Decorative Background Elements */}
+      {/* Decorative Background */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-500/10 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-3xl" />
@@ -164,20 +227,11 @@ const Landing = () => {
               </Button>
             </div>
 
-            {/* Mini Stats */}
+            {/* Stats Counter */}
             <div className="flex flex-wrap gap-8 mt-12" data-aos="fade-up" data-aos-delay="400">
-              <div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white">10K+</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Active Users</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white">50M+</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Messages Sent</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white">99.9%</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Uptime</div>
-              </div>
+              <StatsCounter value={10000} suffix="+" label="Active Users" />
+              <StatsCounter value={50} suffix="M+" label="Messages Sent" />
+              <StatsCounter value={99.9} suffix="%" label="Uptime" />
             </div>
           </div>
 
@@ -199,6 +253,37 @@ const Landing = () => {
             <div className="text-2xl font-bold text-gray-400">ShopMart</div>
             <div className="text-2xl font-bold text-gray-400">BisnisKu</div>
             <div className="text-2xl font-bold text-gray-400">OnlineStore</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Dashboard Showcase */}
+      <section className="container mx-auto px-4 py-24">
+        <div className="text-center mb-16" data-aos="fade-up">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
+            <Smartphone className="w-4 h-4 text-green-600" />
+            <span className="text-sm font-medium text-green-700 dark:text-green-400">Dashboard Preview</span>
+          </div>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+            Dashboard yang Powerful & Intuitive
+          </h2>
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Monitor semua aktivitas WhatsApp Anda dalam satu dashboard yang mudah digunakan
+          </p>
+        </div>
+
+        <div className="relative" data-aos="zoom-in">
+          <div className="absolute -inset-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl blur-2xl opacity-20" />
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
+            <img 
+              src="/api/placeholder/1200/700" 
+              alt="HalloWa Dashboard"
+              className="w-full h-auto"
+            />
+            <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              Live Demo
+            </div>
           </div>
         </div>
       </section>
@@ -240,9 +325,97 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Comparison Table */}
+      <section className="container mx-auto px-4 py-24">
+        <div className="text-center mb-16" data-aos="fade-up">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+            HalloWa vs Manual WhatsApp
+          </h2>
+          <p className="text-xl text-gray-600 dark:text-gray-300">
+            Lihat perbedaan signifikan dalam efisiensi dan hasil
+          </p>
+        </div>
+
+        <div className="max-w-4xl mx-auto" data-aos="fade-up" data-aos-delay="100">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-3 gap-4 p-6 bg-gray-50 dark:bg-gray-900 font-semibold border-b border-gray-200 dark:border-gray-700">
+              <div>Fitur</div>
+              <div className="text-center">Manual WhatsApp</div>
+              <div className="text-center text-green-600">HalloWa</div>
+            </div>
+            {comparison.map((item, index) => (
+              <div 
+                key={index} 
+                className="grid grid-cols-3 gap-4 p-6 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <div className="font-medium text-gray-900 dark:text-white">{item.feature}</div>
+                <div className="text-center text-red-600 flex items-center justify-center gap-2">
+                  <X className="w-4 h-4" />
+                  {item.manual}
+                </div>
+                <div className="text-center text-green-600 flex items-center justify-center gap-2 font-semibold">
+                  <Check className="w-5 h-5" />
+                  {item.hallowa}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="container mx-auto px-4 py-24">
+        <div className="text-center mb-16" data-aos="fade-up">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
+            <Star className="w-4 h-4 text-green-600" />
+            <span className="text-sm font-medium text-green-700 dark:text-green-400">Testimonial</span>
+          </div>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+            Kata Mereka Tentang HalloWa
+          </h2>
+          <p className="text-xl text-gray-600 dark:text-gray-300">
+            Ribuan bisnis sudah merasakan manfaatnya
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          {testimonials.map((testimonial, index) => (
+            <div 
+              key={index}
+              className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow"
+              data-aos="fade-up"
+              data-aos-delay={index * 100}
+            >
+              <div className="flex gap-1 mb-4">
+                {[...Array(testimonial.rating)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+              <p className="text-gray-600 dark:text-gray-300 mb-6 italic">
+                "{testimonial.text}"
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
+                  {testimonial.avatar}
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 dark:text-white">{testimonial.name}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">{testimonial.role}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Benefits Section */}
       <section className="bg-gradient-to-br from-green-600 to-emerald-600 py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-grid-white/10" />
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px)',
+            backgroundSize: '40px 40px'
+          }} />
+        </div>
         <div className="container mx-auto px-4 relative">
           <div className="max-w-4xl mx-auto">
             <h2 
@@ -265,6 +438,37 @@ const Landing = () => {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="container mx-auto px-4 py-24">
+        <div className="text-center mb-16" data-aos="fade-up">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+            Pertanyaan yang Sering Diajukan
+          </h2>
+          <p className="text-xl text-gray-600 dark:text-gray-300">
+            Temukan jawaban untuk pertanyaan umum
+          </p>
+        </div>
+
+        <div className="max-w-3xl mx-auto" data-aos="fade-up" data-aos-delay="100">
+          <Accordion type="single" collapsible className="space-y-4">
+            {faqs.map((faq, index) => (
+              <AccordionItem 
+                key={index} 
+                value={`item-${index}`}
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-6 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <AccordionTrigger className="text-left font-semibold text-gray-900 dark:text-white hover:no-underline py-5">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600 dark:text-gray-300 pb-5">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
       </section>
 
@@ -293,6 +497,9 @@ const Landing = () => {
           >
             Mulai Gratis Sekarang <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+            Free trial 7 hari • Tidak perlu kartu kredit • Setup dalam 5 menit
+          </p>
         </div>
       </section>
 
@@ -322,6 +529,39 @@ const Landing = () => {
   );
 };
 
+// Stats Counter Component with Animation
+const StatsCounter = ({ value, suffix, label }: { value: number; suffix: string; label: string }) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const duration = 2000;
+    const steps = 60;
+    const increment = value / steps;
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= value) {
+        setCount(value);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(current));
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return (
+    <div>
+      <div className="text-3xl font-bold text-gray-900 dark:text-white">
+        {count.toLocaleString()}{suffix}
+      </div>
+      <div className="text-sm text-gray-600 dark:text-gray-400">{label}</div>
+    </div>
+  );
+};
+
 // Chat Animation Component
 const ChatAnimation = () => {
   const [messages, setMessages] = useState<Array<{text: string, isBot: boolean}>>([]);
@@ -339,7 +579,6 @@ const ChatAnimation = () => {
 
   useEffect(() => {
     if (currentIndex >= conversation.length) {
-      // Reset setelah selesai
       setTimeout(() => {
         setMessages([]);
         setCurrentIndex(0);
@@ -361,7 +600,6 @@ const ChatAnimation = () => {
 
   return (
     <div className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 max-w-md mx-auto border border-gray-200 dark:border-gray-700">
-      {/* Chat Header */}
       <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-gray-700 mb-4">
         <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
           <Bot className="w-6 h-6 text-white" />
@@ -375,7 +613,6 @@ const ChatAnimation = () => {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="space-y-3 min-h-[300px]">
         {messages.map((msg, idx) => (
           <div 
@@ -394,7 +631,6 @@ const ChatAnimation = () => {
           </div>
         ))}
         
-        {/* Typing Indicator */}
         {isTyping && currentIndex < conversation.length && conversation[currentIndex].isBot && (
           <div className="flex justify-start animate-fade-in">
             <div className="bg-gray-100 dark:bg-gray-700 px-4 py-3 rounded-2xl rounded-tl-none shadow-md">
