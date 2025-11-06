@@ -119,7 +119,7 @@ export const Auth = () => {
             <MessageSquare className="w-8 h-8 text-white" />
           </div>
           <div>
-            <CardTitle className="text-3xl font-bold">WAPANELS</CardTitle>
+            <CardTitle className="text-3xl font-bold">HalloWa</CardTitle>
             <CardDescription className="text-base mt-2">
               {isLogin ? "Masuk ke akun Anda" : "Buat akun baru"}
             </CardDescription>
