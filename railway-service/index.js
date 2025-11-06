@@ -305,28 +305,8 @@ async function connectWhatsApp(device, isRecovery = false) {
     activeSockets.set(deviceId, sock);
     console.log(`✅ [${deviceName}] Socket created`);
 
-    // ==========================================
-    // CRITICAL: Request pairing code IMMEDIATELY after socket creation
-    // This MUST happen BEFORE connection is established
-    // ==========================================
-    if (isPairingMode && !hasValidSession && !isRecovery) {
-      console.log(`🔐 [${deviceName}] Requesting pairing code IMMEDIATELY...`);
-
-      // Small delay to let socket initialize
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const result = await simplePairingHandler.generatePairingCode(
-        sock,
-        device,
-        supabase
-      );
-
-      if (result) {
-        console.log(`✅ [${deviceName}] Pairing code generated successfully`);
-      } else {
-        console.error(`❌ [${deviceName}] Pairing code generation failed`);
-      }
-    }
+    // Track if pairing code has been requested (prevent duplicates)
+    let pairingCodeRequested = false;
 
     // ==========================================
     // Handle connection updates
@@ -340,6 +320,40 @@ async function connectWhatsApp(device, isRecovery = false) {
         hasQR: !!qr,
         isPairingMode
       });
+
+      // ==========================================
+      // REQUEST PAIRING CODE - Only when socket is connecting and ready
+      // ==========================================
+      if (isPairingMode && !hasValidSession && !isRecovery && !pairingCodeRequested) {
+        // Request pairing code when connection is being established
+        // This is the right time - socket is initialized but not yet connected
+        if (connection === 'connecting' || !connection) {
+          pairingCodeRequested = true; // Mark as requested to prevent duplicates
+          
+          console.log(`🔐 [${deviceName}] Connection state suitable for pairing - requesting code...`);
+          
+          // Wait a bit for socket to fully initialize
+          setTimeout(async () => {
+            try {
+              const result = await simplePairingHandler.generatePairingCode(
+                sock,
+                device,
+                supabase
+              );
+
+              if (result) {
+                console.log(`✅ [${deviceName}] Pairing code generated successfully`);
+              } else {
+                console.error(`❌ [${deviceName}] Pairing code generation failed`);
+                pairingCodeRequested = false; // Allow retry on next update
+              }
+            } catch (err) {
+              console.error(`❌ [${deviceName}] Error generating pairing code:`, err);
+              pairingCodeRequested = false; // Allow retry
+            }
+          }, 3000); // 3 second delay for socket to be ready
+        }
+      }
 
       // Handle QR code for QR method (not pairing mode)
       if (qr && !isPairingMode && !sock.authState.creds.registered && !isRecovery) {
