@@ -6,13 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Send, Clock, Users, Calendar, Smartphone } from "lucide-react";
+import { Plus, Trash2, Send, Clock, Users, Calendar, Smartphone, Edit, Power, PowerOff, History } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { WhatsAppPreview } from "@/components/WhatsAppPreview";
 import { previewMessageVariables } from "@/utils/messageVariables";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface AutoPostSchedule {
   id: string;
@@ -53,6 +54,27 @@ export default function AutoPost() {
   useEffect(() => {
     fetchDevices();
     fetchSchedules();
+
+    // Realtime subscription for schedules
+    const channel = supabase
+      .channel('auto-post-schedules-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'auto_post_schedules'
+        },
+        (payload) => {
+          console.log('Auto-post schedule update:', payload);
+          fetchSchedules(); // Refresh list
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -181,6 +203,40 @@ export default function AutoPost() {
       fetchSchedules();
     } catch (error: any) {
       toast.error(error.message || "Gagal membuat jadwal");
+    }
+  };
+
+  const handleToggleActive = async (scheduleId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("auto_post_schedules")
+        .update({ is_active: !currentStatus })
+        .eq("id", scheduleId);
+
+      if (error) throw error;
+
+      toast.success(currentStatus ? "Jadwal dinonaktifkan" : "Jadwal diaktifkan");
+      fetchSchedules();
+    } catch (error: any) {
+      toast.error(error.message || "Gagal mengubah status");
+    }
+  };
+
+  const handleDeleteSchedule = async (scheduleId: string, scheduleName: string) => {
+    if (!confirm(`Yakin ingin menghapus jadwal "${scheduleName}"?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from("auto_post_schedules")
+        .delete()
+        .eq("id", scheduleId);
+
+      if (error) throw error;
+
+      toast.success("Jadwal berhasil dihapus");
+      fetchSchedules();
+    } catch (error: any) {
+      toast.error(error.message || "Gagal menghapus jadwal");
     }
   };
 
@@ -440,7 +496,7 @@ export default function AutoPost() {
               <Card key={schedule.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="text-lg">{schedule.name}</CardTitle>
                       <CardDescription className="mt-1">
                         {schedule.frequency === 'daily' && 'Setiap hari'}
@@ -449,17 +505,48 @@ export default function AutoPost() {
                         {' '}pukul {schedule.schedule_time}
                       </CardDescription>
                     </div>
-                    <Badge variant={schedule.is_active ? "default" : "secondary"}>
-                      {schedule.is_active ? "Aktif" : "Nonaktif"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={schedule.is_active ? "default" : "secondary"}>
+                        {schedule.is_active ? "Aktif" : "Nonaktif"}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    <p className="text-sm">{schedule.message}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Users className="w-4 h-4" />
-                      {schedule.target_groups.length} grup
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm whitespace-pre-wrap">{schedule.message}</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Users className="w-4 h-4" />
+                        {schedule.target_groups.length} grup target
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleToggleActive(schedule.id, schedule.is_active)}
+                          title={schedule.is_active ? "Nonaktifkan" : "Aktifkan"}
+                        >
+                          {schedule.is_active ? (
+                            <PowerOff className="w-4 h-4 mr-1 text-orange-500" />
+                          ) : (
+                            <Power className="w-4 h-4 mr-1 text-green-500" />
+                          )}
+                          <span className="hidden sm:inline">
+                            {schedule.is_active ? "Nonaktifkan" : "Aktifkan"}
+                          </span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteSchedule(schedule.id, schedule.name)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline ml-1">Hapus</span>
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

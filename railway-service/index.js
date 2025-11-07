@@ -11,6 +11,7 @@ const os = require('os');
 // Import handlers for QR and Pairing code
 const { handleQRCode } = require('./qr-handler');
 const simplePairingHandler = require('./pairing-handler-stable');
+const { checkAutoPostSchedules } = require('./auto-post-handler');
 
 // Supabase config dari environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -158,6 +159,10 @@ async function startService() {
   // Process broadcasts every 10 seconds (reduced from 3s)
   setInterval(processBroadcasts, 10000);
   console.log('📤 Broadcast processing started (every 10 seconds)');
+
+  // Check auto-post schedules every 30 seconds
+  setInterval(() => checkAutoPostSchedules(activeSockets), 30000);
+  console.log('📮 Auto-post schedule check started (every 30 seconds)');
 
   // Health check ping every 60 seconds (reduced from 30s)
   setInterval(healthCheckPing, 60000);

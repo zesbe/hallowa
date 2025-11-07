@@ -52,6 +52,17 @@ export const Devices = () => {
   const [swipedDeviceId, setSwipedDeviceId] = useState<string | null>(null);
   const [connectionMethod, setConnectionMethod] = useState<'qr' | 'pairing'>('qr');
   const [pairingPhone, setPairingPhone] = useState('');
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Get user ID on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setUserId(data.user.id);
+      }
+    });
+  }, []);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -60,10 +71,14 @@ export const Devices = () => {
     });
   }, []);
 
+  // Realtime subscription effect - only runs when userId is available
   useEffect(() => {
+    if (!userId) return;
+
+    // Initial fetch
     fetchDevices();
-    
-    // Subscribe to real-time updates
+
+    // Subscribe to real-time updates for current user's devices only
     const channel = supabase
       .channel('devices-changes')
       .on(
@@ -71,63 +86,89 @@ export const Devices = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'devices'
+          table: 'devices',
+          filter: `user_id=eq.${userId}` // Only listen to current user's devices
         },
         (payload) => {
-          console.log('Device update:', payload);
-          fetchDevices();
-          
-          // Send notifications for device status changes
-          if (payload.eventType === 'UPDATE' && notificationsEnabled) {
-            const oldStatus = payload.old?.status;
-            const newStatus = payload.new?.status;
-            const deviceName = payload.new?.device_name;
-            
-            if (oldStatus !== newStatus && deviceName) {
-              if (newStatus === 'connected') {
-                notifyDeviceConnected(deviceName);
-                toast.success(`${deviceName} Terhubung! ✅`, {
-                  description: 'Device berhasil connect ke WhatsApp'
-                });
-              } else if (newStatus === 'connecting' && oldStatus === 'connected') {
-                toast.info(`${deviceName} Reconnecting... 🔄`, {
-                  description: 'Device sedang mencoba reconnect otomatis'
-                });
-              } else if (newStatus === 'disconnected' && oldStatus === 'connected') {
-                notifyDeviceDisconnected(deviceName);
-                toast.warning(`${deviceName} Terputus ⚠️`, {
-                  description: 'Koneksi WhatsApp terputus'
-                });
-              } else if (newStatus === 'error') {
-                notifyDeviceError(deviceName);
-                toast.error(`${deviceName} Error ❌`, {
-                  description: 'Terjadi kesalahan pada device'
-                });
+          console.log('🔄 Realtime update:', payload.eventType, payload);
+
+          // Update local state immediately (optimistic update)
+          if (payload.eventType === 'INSERT') {
+            const newDevice = payload.new as Device;
+            setDevices(prev => [newDevice, ...prev]);
+            console.log('✅ Device added via realtime');
+          }
+          else if (payload.eventType === 'UPDATE') {
+            const updatedDevice = payload.new as Device;
+            setDevices(prev => prev.map(d => d.id === updatedDevice.id ? updatedDevice : d));
+            console.log('✅ Device updated via realtime:', updatedDevice.id);
+
+            // Send notifications for device status changes
+            if (notificationsEnabled) {
+              const oldStatus = payload.old?.status;
+              const newStatus = payload.new?.status;
+              const deviceName = payload.new?.device_name;
+
+              if (oldStatus !== newStatus && deviceName) {
+                if (newStatus === 'connected') {
+                  notifyDeviceConnected(deviceName);
+                  toast.success(`${deviceName} Terhubung! ✅`, {
+                    description: 'Device berhasil connect ke WhatsApp'
+                  });
+                } else if (newStatus === 'connecting' && oldStatus === 'connected') {
+                  toast.info(`${deviceName} Reconnecting... 🔄`, {
+                    description: 'Device sedang mencoba reconnect otomatis'
+                  });
+                } else if (newStatus === 'disconnected' && oldStatus === 'connected') {
+                  notifyDeviceDisconnected(deviceName);
+                  toast.warning(`${deviceName} Terputus ⚠️`, {
+                    description: 'Koneksi WhatsApp terputus'
+                  });
+                } else if (newStatus === 'error') {
+                  notifyDeviceError(deviceName);
+                  toast.error(`${deviceName} Error ❌`, {
+                    description: 'Terjadi kesalahan pada device'
+                  });
+                }
+              }
+            }
+
+            // Auto-close dialog when connected
+            if (payload.new?.status === 'connected' && selectedDevice?.id === payload.new.id) {
+              if (connectionStatus !== 'pairing_ready') {
+                setTimeout(() => {
+                  setQrDialogOpen(false);
+                  setConnectionStatus("idle");
+                }, 1500);
               }
             }
           }
-          
-          // Auto-close dialog when connected (but not if pairing code is shown)
-          if (payload.eventType === 'UPDATE' && payload.new?.status === 'connected') {
-            // Only auto-close if not showing pairing code
-            if (connectionStatus !== 'pairing_ready') {
-              setTimeout(() => {
-                setQrDialogOpen(false);
-                setConnectionStatus("idle");
-              }, 1500);
-            }
+          else if (payload.eventType === 'DELETE') {
+            const deletedId = payload.old?.id;
+            setDevices(prev => prev.filter(d => d.id !== deletedId));
+            console.log('✅ Device deleted via realtime:', deletedId);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Realtime status:', status);
+        if (status === 'SUBSCRIBED') {
+          setRealtimeConnected(true);
+          toast.success('Realtime sync aktif 🟢', { duration: 2000 });
+        } else if (status === 'CHANNEL_ERROR') {
+          setRealtimeConnected(false);
+          toast.error('Realtime sync error 🔴');
+        }
+      });
 
     return () => {
+      console.log('🔌 Cleaning up realtime subscription');
       supabase.removeChannel(channel);
       if (pollingInterval) {
         clearInterval(pollingInterval);
       }
     };
-  }, []);
+  }, [userId, notificationsEnabled]);
 
   // QR expiry countdown
   useEffect(() => {
@@ -160,7 +201,7 @@ export const Devices = () => {
 
   const handleCreateDevice = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Check limit
     if (!canAddDevice()) {
       toast.error("Limit device tercapai!", {
@@ -168,7 +209,7 @@ export const Devices = () => {
       });
       return;
     }
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
@@ -184,7 +225,7 @@ export const Devices = () => {
       toast.success("Device berhasil ditambahkan");
       setDeviceName("");
       setDialogOpen(false);
-      fetchDevices();
+      // No need to call fetchDevices() - realtime will handle it
       refreshUsage(); // Refresh usage stats
     } catch (error: any) {
       toast.error(error.message);
@@ -309,7 +350,7 @@ export const Devices = () => {
             toast.success("WhatsApp berhasil terhubung!");
             clearInterval(interval);
             setPollingInterval(null);
-            fetchDevices();
+            // No need to call fetchDevices() - realtime will handle it
             setTimeout(() => {
               setQrDialogOpen(false);
               setConnectionStatus("idle");
@@ -392,7 +433,7 @@ export const Devices = () => {
         .update({ status: "disconnected", qr_code: null, pairing_code: null, connection_method: null, phone_for_pairing: null })
         .eq("id", device.id);
       toast.success("Dibatalkan. Anda bisa scan ulang.");
-      fetchDevices();
+      // No need to call fetchDevices() - realtime will handle it
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -404,7 +445,7 @@ export const Devices = () => {
       // Clear all auth data - device will need fresh QR/pairing
       await supabase
         .from("devices")
-        .update({ 
+        .update({
           session_data: null,
           qr_code: null,
           pairing_code: null,
@@ -416,7 +457,7 @@ export const Devices = () => {
         .eq("id", device.id);
 
       toast.success("Session dihapus. Silakan scan QR/pairing ulang.");
-      fetchDevices();
+      // No need to call fetchDevices() - realtime will handle it
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -426,19 +467,17 @@ export const Devices = () => {
     try {
       // Just restart connection - keep session data for recovery
       toast.info("Mencoba koneksi ulang...");
-      
+
       await supabase
         .from("devices")
-        .update({ 
+        .update({
           status: "connecting"
         })
         .eq("id", device.id);
 
       // Railway service will detect status change and attempt recovery
-      setTimeout(() => {
-        fetchDevices();
-        toast.success("Permintaan reconnect dikirim");
-      }, 1000);
+      // No need to call fetchDevices() - realtime will handle it
+      toast.success("Permintaan reconnect dikirim");
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -451,7 +490,7 @@ export const Devices = () => {
       // Full logout - clear everything including phone number
       await supabase
         .from("devices")
-        .update({ 
+        .update({
           status: "disconnected",
           session_data: null,
           phone_number: null,
@@ -463,7 +502,7 @@ export const Devices = () => {
         .eq("id", device.id);
 
       toast.success("Logout berhasil. Device terputus dari WhatsApp.");
-      fetchDevices();
+      // No need to call fetchDevices() - realtime will handle it
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -477,7 +516,8 @@ export const Devices = () => {
       if (error) throw error;
 
       toast.success("Device berhasil dihapus");
-      fetchDevices();
+      // No need to call fetchDevices() - realtime will handle it
+      refreshUsage(); // Refresh usage stats after deletion
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -521,9 +561,17 @@ export const Devices = () => {
       <div className="space-y-4 md:space-y-8">
         <div className="flex flex-col gap-3">
           <div>
-            <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-1 md:mb-2">Device Management</h1>
+            <div className="flex items-center gap-3 mb-1 md:mb-2">
+              <h1 className="text-2xl md:text-4xl font-bold text-foreground">Device Management</h1>
+              {realtimeConnected && (
+                <Badge className="bg-green-500 text-white text-xs flex items-center gap-1">
+                  <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                  Live
+                </Badge>
+              )}
+            </div>
             <p className="text-sm md:text-base text-muted-foreground">
-              Kelola semua perangkat WhatsApp yang terhubung
+              Kelola semua perangkat WhatsApp yang terhubung{realtimeConnected ? ' - Update realtime aktif' : ''}
             </p>
           </div>
           <div className="flex gap-2 w-full">

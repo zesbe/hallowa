@@ -13,21 +13,30 @@ export const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true); // Add checking state
 
   useEffect(() => {
     // Check if already logged in as admin
     const checkAdmin = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .single();
-        
-        if (data?.role === "admin") {
-          navigate("/admin/dashboard");
+      try {
+        setChecking(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .single();
+
+          if (data?.role === "admin") {
+            navigate("/admin/dashboard");
+            return;
+          }
         }
+      } catch (error) {
+        console.error("Error checking admin session:", error);
+      } finally {
+        setChecking(false);
       }
     };
     checkAdmin();
@@ -69,6 +78,25 @@ export const AdminLogin = () => {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking session
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
+        <Card className="w-full max-w-md shadow-xl">
+          <CardContent className="pt-16 pb-16 text-center">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg mb-6">
+              <Shield className="w-8 h-8 text-white animate-pulse" />
+            </div>
+            <div className="space-y-4">
+              <div className="w-12 h-12 mx-auto border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-muted-foreground text-sm">Memeriksa session admin...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
