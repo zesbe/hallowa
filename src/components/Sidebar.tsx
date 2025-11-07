@@ -21,11 +21,12 @@ import {
   Settings,
   LogOut,
   Menu,
-  X,
-  ChevronRight
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -64,6 +65,8 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const open = isOpen || internalOpen;
@@ -235,25 +238,59 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
         </div>
       </div>
 
-      {/* Expand Indicator (Desktop Only) */}
-      <div className={cn(
-        "hidden lg:flex items-center justify-center p-2 border-t border-sidebar-border",
-        "transition-opacity duration-150 ease-out",
-        isExpanded && "opacity-0"
-      )}>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <ChevronRight className="w-4 h-4" />
-        </div>
-      </div>
-
-      {/* Footer */}
+      {/* Profile & Logout Section */}
       <div className={cn(
         "p-2 border-t border-sidebar-border",
         "transition-all duration-150 ease-out"
       )}>
+        <div className={cn(
+          "flex items-center gap-2 p-2 rounded-lg hover:bg-sidebar-accent transition-colors cursor-pointer group",
+          !isExpanded && "lg:justify-center"
+        )}>
+          {/* Avatar */}
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0">
+            <UserCircle className="w-5 h-5 text-white" />
+          </div>
+
+          {/* User Info & Logout - Only visible when expanded */}
+          <div className={cn(
+            "flex-1 min-w-0 transition-all duration-150 ease-out",
+            !isExpanded && "lg:opacity-0 lg:w-0 lg:overflow-hidden"
+          )}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate text-foreground">
+                  {user?.email?.split('@')[0] || 'User'}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {user?.email || 'user@example.com'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                onClick={signOut}
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Logout Icon Only - Show when collapsed on desktop */}
+          {!isExpanded && (
+            <LogOut
+              className="hidden lg:block w-4 h-4 text-muted-foreground group-hover:text-destructive transition-colors absolute opacity-0 group-hover:opacity-100"
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
+        </div>
+
+        {/* Copyright - Only when expanded */}
         <p className={cn(
-          "text-xs text-muted-foreground text-center transition-all duration-150 ease-out",
-          !isExpanded && "lg:opacity-0"
+          "text-[10px] text-muted-foreground text-center mt-2 transition-all duration-150 ease-out",
+          !isExpanded && "lg:opacity-0 lg:h-0"
         )}>
           © 2025 HalloWa.id
         </p>
