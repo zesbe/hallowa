@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -230,7 +231,7 @@ HalloWa WhatsApp Manager
     .reduce((sum, inv) => sum + inv.amount, 0);
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <Layout>
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">🧾 Invoice & Pembayaran</h1>
         <p className="text-muted-foreground">
@@ -459,6 +460,6 @@ HalloWa WhatsApp Manager
           ))}
         </div>
       )}
-    </div>
+    </Layout>
   );
 }
