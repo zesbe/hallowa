@@ -24,7 +24,7 @@ import {
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -65,10 +65,39 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
   const location = useLocation();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = isOpen || internalOpen;
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const handleClose = () => {
     setInternalOpen(false);
     onClose?.();
   };
+
+  // Save scroll position to sessionStorage whenever it changes
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      sessionStorage.setItem('sidebar-scroll-position', scrollContainer.scrollTop.toString());
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Restore scroll position when component mounts or location changes
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const savedPosition = sessionStorage.getItem('sidebar-scroll-position');
+    if (savedPosition) {
+      // Use setTimeout to ensure the DOM is ready
+      setTimeout(() => {
+        scrollContainer.scrollTop = parseInt(savedPosition, 10);
+      }, 0);
+    }
+  }, [location.pathname]);
 
   const NavItem = ({ icon: Icon, label, path, badge }: any) => {
     const pathWithoutQuery = path.split('?')[0];
@@ -135,7 +164,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6">
         {/* Main Menu */}
         <div className="space-y-1">
           {menuItems.map((item) => (
