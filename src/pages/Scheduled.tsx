@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Calendar, Clock, Send, XCircle, Edit, Trash2, CheckCircle2, Image as ImageIcon, Users, X, Upload, Loader2, Info, Zap, Globe, Eye } from "lucide-react";
 import { BroadcastSafetyWarning } from "@/components/BroadcastSafetyWarning";
 import { WhatsAppPreview } from "@/components/WhatsAppPreview";
+import { ContactSelectorEnhanced } from "@/components/ContactSelectorEnhanced";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { 
@@ -257,6 +258,23 @@ export default function Scheduled() {
         ? prev.filter((p) => p !== phoneNumber)
         : [...prev, phoneNumber]
     );
+  };
+
+  const handleSelectAll = (phoneNumbers: string[]) => {
+    setSelectedContacts(prev => {
+      const newSet = new Set([...prev, ...phoneNumbers]);
+      return Array.from(newSet);
+    });
+  };
+
+  const handleClearAll = () => {
+    setSelectedContacts([]);
+  };
+
+  const handleSelectByTag = (tag: string) => {
+    const contactsWithTag = contacts.filter((c: any) => c.tags?.includes(tag));
+    const phoneNumbers = contactsWithTag.map((c: any) => c.phone_number);
+    handleSelectAll(phoneNumbers);
   };
 
   const filteredContactList = contacts.filter(
@@ -799,62 +817,14 @@ export default function Scheduled() {
                         )}
                       </TabsContent>
                       <TabsContent value="contacts" className="space-y-3 mt-4">
-                        <Input
-                          placeholder="Cari kontak..."
-                          value={contactSearch}
-                          onChange={(e) => setContactSearch(e.target.value)}
-                          className="h-12 md:h-10 text-base"
+                        <ContactSelectorEnhanced
+                          contacts={contacts}
+                          selectedContacts={selectedContacts}
+                          onToggleContact={toggleContact}
+                          onSelectByTag={handleSelectByTag}
+                          onSelectAll={handleSelectAll}
+                          onClearAll={handleClearAll}
                         />
-                         <ScrollArea className="h-64 md:h-64 border rounded-lg p-2">
-                          <div className="space-y-1">
-                            {filteredContactList.length === 0 ? (
-                              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                                <Users className="w-12 h-12 mb-2 opacity-20" />
-                                <p className="text-sm">Tidak ada kontak ditemukan</p>
-                              </div>
-                            ) : (
-                              filteredContactList.map((contact) => {
-                                // Ensure all contact data is string to prevent React render errors
-                                const phoneNumber = safeStringify(contact.phone_number);
-                                const contactName = safeStringify(contact.name) || phoneNumber || 'Unknown';
-                                const isGroup = Boolean(contact.is_group);
-
-                                // Skip rendering if no valid phone number
-                                if (!phoneNumber) {
-                                  return null;
-                                }
-
-                                return (
-                                  <div
-                                    key={contact.id}
-                                    className="flex items-center gap-3 p-3 md:p-2 hover:bg-accent rounded-lg cursor-pointer active:scale-[0.98] transition-all"
-                                    onClick={() => toggleContact(phoneNumber)}
-                                  >
-                                    <Checkbox
-                                      checked={selectedContacts.includes(phoneNumber)}
-                                      className="h-5 w-5 md:h-4 md:w-4"
-                                    />
-                                    <div className="flex items-center gap-3 md:gap-2 flex-1 min-w-0">
-                                      {isGroup ? (
-                                        <Users className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground flex-shrink-0" />
-                                      ) : (
-                                        <div className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" />
-                                      )}
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-base md:text-sm font-medium truncate">
-                                          {contactName}
-                                        </p>
-                                        <p className="text-sm md:text-xs text-muted-foreground truncate">
-                                          {phoneNumber}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-                        </ScrollArea>
                       </TabsContent>
                     </Tabs>
                     <div className="flex items-center justify-between bg-accent/50 rounded-lg p-3">

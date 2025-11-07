@@ -35,6 +35,7 @@ import { WhatsAppPreview } from "@/components/WhatsAppPreview";
 import { ContactFilter } from "@/components/ContactFilter";
 import { QuickTemplates } from "@/components/QuickTemplates";
 import { CSVImport } from "@/components/CSVImport";
+import { ContactSelectorEnhanced } from "@/components/ContactSelectorEnhanced";
 import { BroadcastStats } from "@/components/BroadcastStats";
 import { BroadcastSafetyWarning } from "@/components/BroadcastSafetyWarning";
 import { MessageVariablesEnhanced } from "@/components/MessageVariablesEnhanced";
@@ -273,6 +274,23 @@ export const Broadcast = () => {
         ? prev.filter((p) => p !== phoneNumber)
         : [...prev, phoneNumber]
     );
+  };
+
+  const handleSelectAll = (phoneNumbers: string[]) => {
+    setSelectedContacts(prev => {
+      const newSet = new Set([...prev, ...phoneNumbers]);
+      return Array.from(newSet);
+    });
+  };
+
+  const handleClearAll = () => {
+    setSelectedContacts([]);
+  };
+
+  const handleSelectByTag = (tag: string) => {
+    const contactsWithTag = contacts.filter(c => c.tags?.includes(tag));
+    const phoneNumbers = contactsWithTag.map(c => c.phone_number);
+    handleSelectAll(phoneNumbers);
   };
 
   const handleCSVImport = (numbers: string[]) => {
@@ -821,49 +839,14 @@ export const Broadcast = () => {
                         </TabsList>
                         
                         <TabsContent value="contacts" className="space-y-3">
-                          <Input
-                            placeholder="Cari kontak..."
-                            value={contactSearch}
-                            onChange={(e) => setContactSearch(e.target.value)}
+                          <ContactSelectorEnhanced
+                            contacts={contacts}
+                            selectedContacts={selectedContacts}
+                            onToggleContact={toggleContact}
+                            onSelectByTag={handleSelectByTag}
+                            onSelectAll={handleSelectAll}
+                            onClearAll={handleClearAll}
                           />
-                          <ContactFilter 
-                            activeFilter={contactFilter}
-                            onFilterChange={setContactFilter}
-                            counts={contactCounts}
-                          />
-                          <ScrollArea className="h-48 border rounded-md p-3">
-                            <div className="space-y-2">
-                              {filteredContactList.map((contact) => (
-                                <div
-                                  key={contact.id}
-                                  className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"
-                                >
-                                  <Checkbox
-                                    checked={selectedContacts.includes(contact.phone_number)}
-                                    onCheckedChange={() => toggleContact(contact.phone_number)}
-                                  />
-                                  <div 
-                                    className="flex items-center gap-2 flex-1 cursor-pointer"
-                                    onClick={() => toggleContact(contact.phone_number)}
-                                  >
-                                    {contact.is_group ? (
-                                      <Users className="w-4 h-4 text-muted-foreground" />
-                                    ) : (
-                                      <div className="w-4 h-4" />
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium truncate">
-                                        {contact.name || contact.phone_number}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground truncate">
-                                        {contact.phone_number}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </ScrollArea>
                         </TabsContent>
 
                         <TabsContent value="manual" className="space-y-3">
