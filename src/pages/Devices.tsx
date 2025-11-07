@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Smartphone, QrCode, Trash2, RefreshCw, Copy, LogOut, Info, RotateCcw, Database, Bell, BellOff, AlertCircle } from "lucide-react";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, startTransition } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
@@ -107,9 +107,9 @@ export const Devices = () => {
         (payload) => {
           console.log('🔄 Realtime update:', payload.eventType, payload);
 
-          // Batch updates using queueMicrotask for smoother transitions
-          queueMicrotask(() => {
-            // Update local state immediately (optimistic update)
+          // Batch updates using startTransition for smoother, non-blocking updates
+          startTransition(() => {
+            // Update local state with smooth transitions
             if (payload.eventType === 'INSERT') {
               const newDevice = payload.new as Device;
               setDevices(prev => [newDevice, ...prev]);
@@ -385,7 +385,7 @@ export const Devices = () => {
             setPollingInterval(null);
           }
         }
-      }, 3000); // Poll every 3 seconds - reduced from 2s for better performance
+      }, 2000); // Poll every 2 seconds - optimized with batching
 
       setPollingInterval(interval);
 
@@ -553,7 +553,7 @@ export const Devices = () => {
     setDetailDialogOpen(true);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case "connected":
         return "bg-green-500 text-white";
@@ -562,9 +562,9 @@ export const Devices = () => {
       default:
         return "bg-red-500 text-white";
     }
-  };
+  }, []);
 
-  const getStatusText = (status: string) => {
+  const getStatusText = useCallback((status: string) => {
     switch (status) {
       case "connected":
         return "Terkoneksi";
@@ -573,7 +573,7 @@ export const Devices = () => {
       default:
         return "Tidak Terkoneksi";
     }
-  };
+  }, []);
 
   return (
     <Layout>
@@ -738,12 +738,12 @@ export const Devices = () => {
                   </TableHeader>
                   <TableBody>
                     {devices.map((device) => (
-                      <TableRow key={device.id} className="hover:bg-muted/30 transition-colors">
+                      <TableRow key={device.id} className="hover:bg-muted/30 transition-all duration-300 ease-in-out">
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <span className="font-medium">{device.device_name}</span>
                             {device.is_multidevice && (
-                              <Badge className="bg-green-500 text-white w-fit text-xs">
+                              <Badge className="bg-green-500 text-white w-fit text-xs transition-all duration-200">
                                 Multidevice
                               </Badge>
                             )}
@@ -769,7 +769,7 @@ export const Devices = () => {
                           <span className="text-sm font-mono">{device.server_id || '-'}</span>
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusColor(device.status)}>
+                          <Badge className={`${getStatusColor(device.status)} transition-all duration-300`}>
                             {getStatusText(device.status)}
                           </Badge>
                         </TableCell>
