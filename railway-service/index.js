@@ -11,6 +11,7 @@ const os = require('os');
 // Import handlers for QR and Pairing code
 const { handleQRCode } = require('./qr-handler');
 const simplePairingHandler = require('./pairing-handler-stable');
+const { checkAutoPostSchedules } = require('./auto-post-handler');
 
 // Supabase config dari environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -162,6 +163,10 @@ async function startService() {
   // Health check ping every 60 seconds (reduced from 30s)
   setInterval(healthCheckPing, 60000);
   console.log('💓 Health check ping started (every 60 seconds)');
+
+  // Check auto-post schedules every 30 seconds
+  setInterval(() => checkAutoPostSchedules(activeSockets), 30000);
+  console.log('📅 Auto-post scheduler started (every 30 seconds)');
 }
 
 // Auth state persisted in Supabase ONLY (Redis removed to save resources)
