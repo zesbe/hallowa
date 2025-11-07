@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["nodejs-20_x"]
+
+[phases.install]
+cmds = ["cd railway-service && npm install"]
+
+[start]
+cmd = "cd railway-service && npm run start"
