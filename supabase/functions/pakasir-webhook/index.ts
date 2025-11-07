@@ -20,48 +20,23 @@ serve(async (req) => {
     const webhookData = await req.json();
     console.log('Received webhook:', webhookData);
 
-    const { order_id, amount, status, payment_method, completed_at, signature } = webhookData;
+    const { order_id, amount, status, payment_method, completed_at, project } = webhookData;
 
     // Validate webhook data
     if (!order_id || !amount || !status) {
       throw new Error('Invalid webhook data');
     }
 
-    // Verify webhook signature for security
-    const pakasirApiKey = Deno.env.get('PAKASIR_API_KEY');
-    if (!pakasirApiKey) {
-      console.error('PAKASIR_API_KEY not configured');
-      throw new Error('Server configuration error');
+    // Validate project matches our expected project
+    const expectedProject = 'halowa';
+    if (project && project !== expectedProject) {
+      console.error('Invalid project:', project);
+      throw new Error('Unauthorized: Invalid project');
     }
 
-    // Create expected signature: HMAC-SHA256(order_id + amount + status, PAKASIR_API_KEY)
-    const dataToSign = `${order_id}${amount}${status}`;
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(pakasirApiKey);
-    const msgData = encoder.encode(dataToSign);
-    
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    
-    const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
-    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+    console.log('✅ Webhook validation passed');
 
-    // Compare signatures (constant-time comparison to prevent timing attacks)
-    if (!signature || signature !== expectedSignature) {
-      console.error('Invalid webhook signature');
-      throw new Error('Unauthorized: Invalid signature');
-    }
-
-    console.log('✅ Webhook signature verified');
-
-    // Find payment record
+    // Find payment record - must exist and match order_id and amount
     const { data: payment, error: findError } = await supabaseClient
       .from('payments')
       .select('*')
@@ -75,6 +50,18 @@ serve(async (req) => {
     }
 
     console.log('Found payment:', payment);
+
+    // Additional security: only update if payment is still pending
+    // This prevents replay attacks or duplicate webhook calls from changing completed payments
+    if (payment.status === 'completed' && status === 'completed') {
+      console.log('Payment already completed, ignoring duplicate webhook');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Payment already completed' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     // Update payment status
     const { error: updateError } = await supabaseClient
