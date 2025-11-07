@@ -21,39 +21,40 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: PlayCircle, label: "Video Tutorial", path: "/tutorial" },
+  { icon: PlayCircle, label: "Tutorial", path: "/tutorial" },
   { icon: MessageSquare, label: "CRM Chat", path: "/crm-chat", badge: "New" },
-  { icon: Radio, label: "Device Broadcast", path: "/devices" },
+  { icon: Radio, label: "Devices", path: "/devices" },
   { icon: Users, label: "Kontak", path: "/contacts" },
-  { icon: FileText, label: "Daftar Template", path: "/templates" },
+  { icon: FileText, label: "Template", path: "/templates" },
 ];
 
 const messagingItems = [
-  { icon: Send, label: "Broadcast Pesan", path: "/broadcast" },
-  { icon: Calendar, label: "Jadwal Broadcast", path: "/scheduled" },
+  { icon: Send, label: "Broadcast", path: "/broadcast" },
+  { icon: Calendar, label: "Jadwal", path: "/scheduled" },
 ];
 
 const featuresItems = [
-  { icon: ShoppingCart, label: "MarketPlace", path: "/marketplace" },
+  { icon: ShoppingCart, label: "Marketplace", path: "/marketplace" },
   { icon: Zap, label: "Kirim Cepat", path: "/quick-send" },
-  { icon: Bot, label: "Chatbot (Auto Reply)", path: "/chatbot" },
-  { icon: Webhook, label: "Webhook App", path: "/webhooks" },
-  { icon: Send, label: "Auto Post ke Grup", path: "/auto-post", badge: "New" },
+  { icon: Bot, label: "Chatbot", path: "/chatbot" },
+  { icon: Webhook, label: "Webhook", path: "/webhooks" },
+  { icon: Send, label: "Auto Post", path: "/auto-post", badge: "New" },
 ];
 
 const settingsItems = [
-  { icon: History, label: "History Pesan", path: "/history" },
-  { icon: DollarSign, label: "Daftar Harga", path: "/pricing" },
+  { icon: History, label: "History", path: "/history" },
+  { icon: DollarSign, label: "Harga", path: "/pricing" },
   { icon: Receipt, label: "Invoice", path: "/invoices" },
   { icon: Key, label: "API Key", path: "/api-keys" },
-  { icon: Settings, label: "Pengaturan Profile", path: "/settings" },
+  { icon: Settings, label: "Pengaturan", path: "/settings" },
 ];
 
 interface SidebarProps {
@@ -64,8 +65,13 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
   const location = useLocation();
   const [internalOpen, setInternalOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const open = isOpen || internalOpen;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Desktop: expanded state is controlled by hover
+  const isExpanded = isHovered;
 
   const handleClose = () => {
     setInternalOpen(false);
@@ -86,18 +92,15 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
   }, []);
 
   // Restore scroll position when component mounts or location changes
-  // Use useLayoutEffect for synchronous execution before browser paint
   useLayoutEffect(() => {
     const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) return;
 
     const savedPosition = sessionStorage.getItem('sidebar-scroll-position');
     if (savedPosition) {
-      // Restore immediately without animation for instant positioning
       const scrollTop = parseInt(savedPosition, 10);
       scrollContainer.style.scrollBehavior = 'auto';
       scrollContainer.scrollTop = scrollTop;
-      // Re-enable smooth scrolling after restoration
       requestAnimationFrame(() => {
         scrollContainer.style.scrollBehavior = '';
       });
@@ -107,37 +110,38 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
   const NavItem = ({ icon: Icon, label, path, badge }: any) => {
     const pathWithoutQuery = path.split('?')[0];
     const pathQuery = path.includes('?') ? '?' + path.split('?')[1] : '';
-    
-    // Check if path matches (both pathname and query must match exactly)
-    const isActive = location.pathname === pathWithoutQuery && 
+
+    const isActive = location.pathname === pathWithoutQuery &&
       location.search === pathQuery;
-    
+
     return (
       <Link
         to={path}
         className={cn(
-          "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
-          "hover:bg-sidebar-accent group relative",
-          isActive && "bg-gradient-to-r from-primary/10 to-secondary/10 border-l-4 border-primary"
+          "flex items-center gap-2 px-2.5 py-2 rounded-md transition-all duration-200 group relative",
+          "hover:bg-sidebar-accent",
+          isActive && "bg-gradient-to-r from-primary/10 to-secondary/10 border-l-2 border-primary"
         )}
         onClick={handleClose}
+        title={!isExpanded ? label : undefined}
       >
         <Icon
           className={cn(
-            "w-5 h-5 transition-colors",
+            "w-4 h-4 shrink-0 transition-colors",
             isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary"
           )}
         />
         <span
           className={cn(
-            "font-medium transition-colors",
-            isActive ? "text-primary" : "text-foreground"
+            "text-xs font-medium transition-all duration-200",
+            isActive ? "text-primary" : "text-foreground",
+            !isExpanded && "lg:opacity-0 lg:w-0 lg:overflow-hidden"
           )}
         >
           {label}
         </span>
-        {badge && (
-          <span className="ml-auto text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded-full">
+        {badge && isExpanded && (
+          <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-destructive text-destructive-foreground rounded-full">
             {badge}
           </span>
         )}
@@ -146,41 +150,56 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-sidebar-background border-r border-sidebar-border">
+    <div
+      ref={sidebarRef}
+      className="flex flex-col h-full bg-sidebar-background border-r border-sidebar-border"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
-            <MessageSquare className="w-6 h-6 text-white" />
+      <div className="p-3 border-b border-sidebar-border flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={cn(
+            "w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center shrink-0",
+            "transition-all duration-200"
+          )}>
+            <MessageSquare className="w-4 h-4 text-white" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">HalloWa</h1>
-            <p className="text-xs text-muted-foreground">WhatsApp Manager</p>
+          <div className={cn(
+            "transition-all duration-200",
+            !isExpanded && "lg:opacity-0 lg:w-0 lg:overflow-hidden"
+          )}>
+            <h1 className="text-sm font-bold text-foreground whitespace-nowrap">HalloWa</h1>
+            <p className="text-[10px] text-muted-foreground whitespace-nowrap">WhatsApp Manager</p>
           </div>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="lg:hidden h-8 w-8"
           onClick={handleClose}
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </Button>
       </div>
 
       {/* Navigation */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-2 space-y-4 custom-scrollbar">
         {/* Main Menu */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {menuItems.map((item) => (
             <NavItem key={item.path} {...item} />
           ))}
         </div>
 
         {/* Messaging Section */}
-        <div className="space-y-1">
-          <h3 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Messaging
+        <div className="space-y-0.5">
+          <h3 className={cn(
+            "px-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1",
+            "transition-all duration-200",
+            !isExpanded && "lg:text-center lg:px-0"
+          )}>
+            {isExpanded ? 'Messaging' : 'MSG'}
           </h3>
           {messagingItems.map((item) => (
             <NavItem key={item.path} {...item} />
@@ -188,9 +207,13 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
         </div>
 
         {/* Features Section */}
-        <div className="space-y-1">
-          <h3 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Features
+        <div className="space-y-0.5">
+          <h3 className={cn(
+            "px-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1",
+            "transition-all duration-200",
+            !isExpanded && "lg:text-center lg:px-0"
+          )}>
+            {isExpanded ? 'Features' : 'FTR'}
           </h3>
           {featuresItems.map((item) => (
             <NavItem key={item.path} {...item} />
@@ -198,9 +221,13 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
         </div>
 
         {/* Settings Section */}
-        <div className="space-y-1">
-          <h3 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Settings
+        <div className="space-y-0.5">
+          <h3 className={cn(
+            "px-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1",
+            "transition-all duration-200",
+            !isExpanded && "lg:text-center lg:px-0"
+          )}>
+            {isExpanded ? 'Settings' : 'SET'}
           </h3>
           {settingsItems.map((item) => (
             <NavItem key={item.path} {...item} />
@@ -208,9 +235,28 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
         </div>
       </div>
 
+      {/* Expand Indicator (Desktop Only) */}
+      <div className={cn(
+        "hidden lg:flex items-center justify-center p-2 border-t border-sidebar-border",
+        "transition-opacity duration-200",
+        isExpanded && "opacity-0"
+      )}>
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <ChevronRight className="w-3 h-3" />
+        </div>
+      </div>
+
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border">
-        <p className="text-xs text-muted-foreground text-center">© 2025 HalloWa.id</p>
+      <div className={cn(
+        "p-2 border-t border-sidebar-border",
+        "transition-all duration-200"
+      )}>
+        <p className={cn(
+          "text-[10px] text-muted-foreground text-center transition-all duration-200",
+          !isExpanded && "lg:opacity-0"
+        )}>
+          © 2025 HalloWa.id
+        </p>
       </div>
     </div>
   );
@@ -220,7 +266,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
       {/* Mobile Overlay */}
       {open && (
         <div
-          className="lg:hidden fixed inset-0 bg-background z-[60]"
+          className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-[60]"
           onClick={handleClose}
         />
       )}
@@ -228,8 +274,13 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps = {}) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed lg:sticky top-0 left-0 h-screen w-72 z-[70] transform transition-transform duration-300 ease-in-out",
-          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          "fixed lg:sticky top-0 left-0 h-screen z-[70]",
+          "transform transition-all duration-300 ease-in-out",
+          // Mobile
+          open ? "translate-x-0 w-64" : "-translate-x-full w-64",
+          // Desktop
+          "lg:translate-x-0",
+          isExpanded ? "lg:w-56" : "lg:w-16"
         )}
       >
         {sidebarContent}
@@ -243,9 +294,9 @@ export const MobileMenuButton = ({ onClick }: { onClick: () => void }) => (
   <Button
     variant="ghost"
     size="icon"
-    className="lg:hidden fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+    className="lg:hidden fixed bottom-16 right-4 z-50 w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all"
     onClick={onClick}
   >
-    <Menu className="w-6 h-6" />
+    <Menu className="w-5 h-5" />
   </Button>
 );
