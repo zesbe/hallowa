@@ -23,7 +23,13 @@ interface AutoPostSchedule {
   target_groups: string[];
   frequency: 'daily' | 'weekly' | 'monthly';
   schedule_time: string;
+  timezone?: string;
+  selected_days?: number[];
+  random_delay?: boolean;
+  delay_minutes?: number;
   is_active: boolean;
+  send_count?: number;
+  failed_count?: number;
   created_at: string;
   device_id: string;
   user_id: string;
@@ -46,9 +52,14 @@ export default function AutoPost() {
   const [formData, setFormData] = useState({
     name: "",
     message: "",
+    media_url: "",
     target_groups: [] as string[],
     frequency: "daily" as 'daily' | 'weekly' | 'monthly',
     schedule_time: "09:00",
+    timezone: "Asia/Jakarta",
+    selected_days: [0, 1, 2, 3, 4, 5, 6] as number[], // All days by default
+    random_delay: false,
+    delay_minutes: 5,
     is_active: true,
   });
 
@@ -317,9 +328,14 @@ export default function AutoPost() {
           device_id: selectedDevice,
           name: formData.name,
           message: formData.message,
+          media_url: formData.media_url || null,
           target_groups: formData.target_groups,
           frequency: formData.frequency,
           schedule_time: formData.schedule_time,
+          timezone: formData.timezone,
+          selected_days: formData.selected_days,
+          random_delay: formData.random_delay,
+          delay_minutes: formData.delay_minutes,
           is_active: formData.is_active,
         });
 
@@ -329,9 +345,14 @@ export default function AutoPost() {
       setFormData({
         name: "",
         message: "",
+        media_url: "",
         target_groups: [],
         frequency: "daily",
         schedule_time: "09:00",
+        timezone: "Asia/Jakarta",
+        selected_days: [0, 1, 2, 3, 4, 5, 6],
+        random_delay: false,
+        delay_minutes: 5,
         is_active: true,
       });
       fetchSchedules();
@@ -490,15 +511,139 @@ export default function AutoPost() {
                     </Select>
                   </div>
 
+                  {/* Day Selection for Weekly */}
+                  {formData.frequency === 'weekly' && (
+                    <div className="space-y-2">
+                      <Label>Pilih Hari</Label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { label: 'Min', value: 0 },
+                          { label: 'Sen', value: 1 },
+                          { label: 'Sel', value: 2 },
+                          { label: 'Rab', value: 3 },
+                          { label: 'Kam', value: 4 },
+                          { label: 'Jum', value: 5 },
+                          { label: 'Sab', value: 6 },
+                        ].map((day) => (
+                          <Button
+                            key={day.value}
+                            type="button"
+                            variant={formData.selected_days.includes(day.value) ? "default" : "outline"}
+                            size="sm"
+                            className="transition-all duration-200"
+                            onClick={() => {
+                              const days = formData.selected_days.includes(day.value)
+                                ? formData.selected_days.filter(d => d !== day.value)
+                                : [...formData.selected_days, day.value].sort();
+                              setFormData({ ...formData, selected_days: days });
+                            }}
+                          >
+                            {day.label}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Pilih hari-hari untuk posting mingguan
+                      </p>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
-                    <Label htmlFor="time">Waktu Kirim</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={formData.schedule_time}
-                      onChange={(e) => setFormData({ ...formData, schedule_time: e.target.value })}
-                      required
-                    />
+                    <Label htmlFor="time">Waktu Kirim (24 Jam)</Label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={formData.schedule_time.split(':')[0]}
+                        onValueChange={(hour) => {
+                          const minute = formData.schedule_time.split(':')[1] || '00';
+                          setFormData({ ...formData, schedule_time: `${hour}:${minute}` });
+                        }}
+                      >
+                        <SelectTrigger className="w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {Array.from({ length: 24 }, (_, i) => (
+                            <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                              {i.toString().padStart(2, '0')} jam
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="flex items-center">:</span>
+                      <Select
+                        value={formData.schedule_time.split(':')[1] || '00'}
+                        onValueChange={(minute) => {
+                          const hour = formData.schedule_time.split(':')[0];
+                          setFormData({ ...formData, schedule_time: `${hour}:${minute}` });
+                        }}
+                      >
+                        <SelectTrigger className="w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {Array.from({ length: 60 }, (_, i) => (
+                            <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                              {i.toString().padStart(2, '0')} menit
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="timezone">Zona Waktu</Label>
+                    <Select
+                      value={formData.timezone}
+                      onValueChange={(value) => setFormData({ ...formData, timezone: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Asia/Jakarta">WIB - Jakarta (GMT+7)</SelectItem>
+                        <SelectItem value="Asia/Makassar">WITA - Makassar (GMT+8)</SelectItem>
+                        <SelectItem value="Asia/Jayapura">WIT - Jayapura (GMT+9)</SelectItem>
+                        <SelectItem value="Asia/Singapore">Singapore (GMT+8)</SelectItem>
+                        <SelectItem value="Asia/Kuala_Lumpur">Malaysia (GMT+8)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="random_delay"
+                        checked={formData.random_delay}
+                        onCheckedChange={(checked) =>
+                          setFormData({ ...formData, random_delay: checked })
+                        }
+                      />
+                      <Label htmlFor="random_delay" className="cursor-pointer">
+                        Acak waktu kirim
+                      </Label>
+                    </div>
+                    {formData.random_delay && (
+                      <div className="pl-8">
+                        <Label htmlFor="delay_minutes" className="text-xs">
+                          Random ±{formData.delay_minutes} menit
+                        </Label>
+                        <Input
+                          id="delay_minutes"
+                          type="number"
+                          min="1"
+                          max="60"
+                          value={formData.delay_minutes}
+                          onChange={(e) =>
+                            setFormData({ ...formData, delay_minutes: parseInt(e.target.value) || 5 })
+                          }
+                          className="w-24 text-sm"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Waktu kirim akan diacak ±{formData.delay_minutes} menit dari jadwal
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -540,13 +685,51 @@ export default function AutoPost() {
                     </div>
                   </div>
 
+                  {/* Media Upload */}
+                  <div className="space-y-2">
+                    <Label htmlFor="media_url">Media (Opsional)</Label>
+                    <Input
+                      id="media_url"
+                      type="url"
+                      value={formData.media_url}
+                      onChange={(e) => setFormData({ ...formData, media_url: e.target.value })}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      URL gambar/video yang akan dikirim bersama pesan (format: JPG, PNG, MP4, dll)
+                    </p>
+                    {formData.media_url && (
+                      <div className="p-2 border rounded-lg bg-muted/30">
+                        <p className="text-xs text-muted-foreground mb-2">Preview Media:</p>
+                        {formData.media_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                          <img
+                            src={formData.media_url}
+                            alt="Media preview"
+                            className="max-w-full h-auto max-h-40 rounded object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : formData.media_url.match(/\.(mp4|mov|avi)$/i) ? (
+                          <video
+                            src={formData.media_url}
+                            className="max-w-full h-auto max-h-40 rounded"
+                            controls
+                          />
+                        ) : (
+                          <p className="text-xs text-muted-foreground">📎 {formData.media_url}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Message Preview */}
                   {formData.message && (
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Preview Pesan:</Label>
-                      <WhatsAppPreview 
+                      <WhatsAppPreview
                         message={previewMessageVariables(formData.message)}
-                        hasMedia={false}
+                        hasMedia={!!formData.media_url}
                       />
                     </div>
                   )}
