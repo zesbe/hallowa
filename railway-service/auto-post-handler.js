@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Fixed env var name
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
@@ -124,10 +124,44 @@ async function processAutoPostSchedule(schedule, activeSockets) {
           ? group.phone_number
           : `${group.phone_number}@g.us`;
 
+        // Prepare message content
+        let messageContent;
+
+        if (schedule.media_url) {
+          // Send with media
+          try {
+            const response = await fetch(schedule.media_url);
+            const buffer = await response.arrayBuffer();
+            const mediaBuffer = Buffer.from(buffer);
+
+            // Determine media type from URL
+            const ext = schedule.media_url.toLowerCase().split('.').pop().split('?')[0];
+
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+              messageContent = {
+                image: mediaBuffer,
+                caption: processedMessage
+              };
+            } else if (['mp4', 'mov', 'avi'].includes(ext)) {
+              messageContent = {
+                video: mediaBuffer,
+                caption: processedMessage
+              };
+            } else {
+              // Fallback to text if media type unknown
+              messageContent = { text: processedMessage };
+            }
+          } catch (mediaError) {
+            console.error(`⚠️ Failed to load media, sending text only:`, mediaError.message);
+            messageContent = { text: processedMessage };
+          }
+        } else {
+          // Text only
+          messageContent = { text: processedMessage };
+        }
+
         // Send message via Baileys
-        await socket.sendMessage(groupJid, {
-          text: processedMessage
-        });
+        await socket.sendMessage(groupJid, messageContent);
 
         // Log success
         await supabase.from('auto_post_logs').insert({
@@ -142,8 +176,16 @@ async function processAutoPostSchedule(schedule, activeSockets) {
         successCount++;
         console.log(`✅ Sent to group: ${group.name || group.phone_number}`);
 
-        // Delay between messages to avoid spam detection
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Calculate delay (with random variation if enabled)
+        let delay = 2000; // Base delay 2 seconds
+
+        if (schedule.random_delay && schedule.delay_minutes) {
+          // Add random variation in milliseconds
+          const randomMs = Math.random() * (schedule.delay_minutes * 60 * 1000);
+          delay += randomMs;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, delay));
 
       } catch (error) {
         failCount++;
@@ -162,11 +204,16 @@ async function processAutoPostSchedule(schedule, activeSockets) {
       }
     }
 
-    // Update schedule's last_sent_at (trigger will auto-calculate next_send_at)
+    // Update schedule's last_sent_at and statistics (trigger will auto-calculate next_send_at)
+    const currentSendCount = schedule.send_count || 0;
+    const currentFailCount = schedule.failed_count || 0;
+
     await supabase
       .from('auto_post_schedules')
       .update({
-        last_sent_at: new Date().toISOString()
+        last_sent_at: new Date().toISOString(),
+        send_count: currentSendCount + successCount,
+        failed_count: currentFailCount + failCount
       })
       .eq('id', schedule.id);
 
