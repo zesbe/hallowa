@@ -51,13 +51,9 @@ async function checkAutoPostSchedules(activeSockets) {
     // Fetch active schedules that are due for sending
     const { data: schedules, error } = await supabase
       .from('auto_post_schedules')
-      .select(`
-        *,
-        devices!inner(id, status, phone_number)
-      `)
+      .select('*')
       .eq('is_active', true)
-      .lte('next_send_at', now.toISOString())
-      .eq('devices.status', 'connected');
+      .lte('next_send_at', now.toISOString());
 
     if (error) {
       console.error('Error fetching auto-post schedules:', error);
@@ -70,8 +66,15 @@ async function checkAutoPostSchedules(activeSockets) {
 
     console.log(`📅 Found ${schedules.length} auto-post schedule(s) to process`);
 
+    // Filter schedules that have connected devices
     for (const schedule of schedules) {
-      await processAutoPostSchedule(schedule, activeSockets);
+      // Check if device socket exists and is connected
+      const socket = activeSockets.get(schedule.device_id);
+      if (socket && socket.user) {
+        await processAutoPostSchedule(schedule, activeSockets);
+      } else {
+        console.log(`⏭️ Skipping schedule "${schedule.name}" - device not connected`);
+      }
     }
 
   } catch (error) {
