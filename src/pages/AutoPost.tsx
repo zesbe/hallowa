@@ -550,7 +550,7 @@ export default function AutoPost() {
 
                   <div className="space-y-2">
                     <Label htmlFor="time">Waktu Kirim (24 Jam)</Label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <Select
                         value={formData.schedule_time.split(':')[0]}
                         onValueChange={(hour) => {
@@ -558,18 +558,18 @@ export default function AutoPost() {
                           setFormData({ ...formData, schedule_time: `${hour}:${minute}` });
                         }}
                       >
-                        <SelectTrigger className="w-[100px]">
+                        <SelectTrigger className="w-[80px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="max-h-60">
                           {Array.from({ length: 24 }, (_, i) => (
                             <SelectItem key={i} value={i.toString().padStart(2, '0')}>
-                              {i.toString().padStart(2, '0')} jam
+                              {i.toString().padStart(2, '0')}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <span className="flex items-center">:</span>
+                      <span className="text-lg font-medium">:</span>
                       <Select
                         value={formData.schedule_time.split(':')[1] || '00'}
                         onValueChange={(minute) => {
@@ -577,13 +577,13 @@ export default function AutoPost() {
                           setFormData({ ...formData, schedule_time: `${hour}:${minute}` });
                         }}
                       >
-                        <SelectTrigger className="w-[100px]">
+                        <SelectTrigger className="w-[80px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="max-h-60">
                           {Array.from({ length: 60 }, (_, i) => (
                             <SelectItem key={i} value={i.toString().padStart(2, '0')}>
-                              {i.toString().padStart(2, '0')} menit
+                              {i.toString().padStart(2, '0')}
                             </SelectItem>
                           ))}
                         </SelectContent>
