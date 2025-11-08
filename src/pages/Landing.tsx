@@ -75,6 +75,7 @@ const Landing = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+
   const fetchLandingContent = async () => {
     try {
       // Fetch About section
@@ -281,6 +282,26 @@ const Landing = () => {
           0%, 100% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.3); }
           50% { box-shadow: 0 0 40px rgba(34, 197, 94, 0.6); }
         }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
         .animate-float {
           animation: float 6s ease-in-out infinite;
         }
@@ -294,9 +315,30 @@ const Landing = () => {
         .animate-glow {
           animation: glow 3s ease-in-out infinite;
         }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.8s ease-out forwards;
+        }
+        .animate-scale-in {
+          animation: scaleIn 0.6s ease-out forwards;
+        }
         .card-3d:hover {
           transform: translateY(-10px) scale(1.02);
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .magnetic-button {
+          transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .magnetic-button:hover {
+          transform: scale(1.05);
+        }
+        .magnetic-button:active {
+          transform: scale(0.98);
+        }
+        @media (hover: hover) {
+          .magnetic-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(34, 197, 94, 0.4);
+          }
         }
       `}</style>
 
@@ -386,7 +428,7 @@ const Landing = () => {
               <Button
                 size="lg"
                 onClick={() => navigate("/auth")}
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-lg px-8 shadow-xl shadow-green-500/30 group animate-glow"
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-lg px-8 shadow-xl shadow-green-500/30 group animate-glow magnetic-button"
               >
                 Mulai Sekarang <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
@@ -911,7 +953,7 @@ const Landing = () => {
           <Button
             size="lg"
             onClick={() => navigate("/auth")}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-lg px-10 py-6 shadow-xl shadow-green-500/30 group"
+            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-lg px-10 py-6 shadow-xl shadow-green-500/30 group magnetic-button animate-scale-in"
             data-aos="zoom-in"
             data-aos-delay="200"
           >
@@ -957,31 +999,52 @@ const Landing = () => {
   );
 };
 
-// Stats Counter Component with Animation
+// Stats Counter Component with Scroll Trigger Animation
 const StatsCounter = ({ value, suffix, label }: { value: number; suffix: string; label: string }) => {
   const [count, setCount] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const counterRef = useState<HTMLDivElement | null>(null)[0];
 
   useEffect(() => {
-    const duration = 2000;
-    const steps = 60;
-    const increment = value / steps;
-    let current = 0;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !hasAnimated) {
+          setHasAnimated(true);
 
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= value) {
-        setCount(value);
-        clearInterval(timer);
-      } else {
-        setCount(Math.floor(current));
+          const duration = 2000;
+          const steps = 60;
+          const increment = value / steps;
+          let current = 0;
+
+          const timer = setInterval(() => {
+            current += increment;
+            if (current >= value) {
+              setCount(value);
+              clearInterval(timer);
+            } else {
+              setCount(Math.floor(current));
+            }
+          }, duration / steps);
+
+          return () => clearInterval(timer);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (counterRef) {
+      observer.observe(counterRef);
+    }
+
+    return () => {
+      if (counterRef) {
+        observer.unobserve(counterRef);
       }
-    }, duration / steps);
-
-    return () => clearInterval(timer);
-  }, [value]);
+    };
+  }, [value, hasAnimated, counterRef]);
 
   return (
-    <div>
+    <div ref={(el) => { if (el) counterRef = el; }}>
       <div className="text-3xl font-bold text-gray-900 dark:text-white">
         {count.toLocaleString()}{suffix}
       </div>
