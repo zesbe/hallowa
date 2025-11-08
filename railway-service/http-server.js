@@ -103,6 +103,21 @@ function createHTTPServer(activeSockets) {
           // Send message via Baileys
           const sentMessage = await sock.sendMessage(targetJid, messageContent);
 
+          // Save sent message to database for CRM
+          const { saveMessageToDatabase } = require('./crm-message-handler');
+
+          // Get device info from socket
+          const deviceUserId = sock.deviceUserId || null;
+
+          if (deviceUserId) {
+            await saveMessageToDatabase(deviceId, deviceUserId, {
+              key: sentMessage.key,
+              message: sentMessage.message,
+              pushName: sock.user?.name || 'Me',
+              fromMe: true
+            });
+          }
+
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             success: true,

@@ -17,8 +17,19 @@ async function saveMessageToDatabase(deviceId, userId, messageData) {
       fromMe
     } = messageData;
 
+    // Validate message object
+    if (!message || !key) {
+      console.error('Invalid message data - missing message or key');
+      return null;
+    }
+
     // Extract contact JID
     const contactJid = fromMe ? key.remoteJid : key.remoteJid;
+    if (!contactJid) {
+      console.error('Invalid message data - missing contactJid');
+      return null;
+    }
+
     const contactPhone = contactJid.split('@')[0];
 
     // Get or create conversation

@@ -94,7 +94,18 @@ serve(async (req) => {
       )
     }
 
-    const baileysResult = await response.json()
+    // Parse response safely
+    let baileysResult
+    try {
+      const responseText = await response.text()
+      baileysResult = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('Failed to parse Railway response:', parseError)
+      return new Response(
+        JSON.stringify({ error: 'Invalid response from Baileys service' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Create admin supabase client for inserting message
     const supabaseAdmin = createClient(
