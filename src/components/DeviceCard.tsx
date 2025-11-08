@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { QrCode, Info, Database, RotateCcw, LogOut, Trash2, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { memo } from "react";
 
 interface Device {
   id: string;
@@ -28,7 +29,7 @@ interface DeviceCardProps {
   getStatusText: (status: string) => string;
 }
 
-export function DeviceCard({
+export const DeviceCard = memo(function DeviceCard({
   device,
   onConnect,
   onDetail,
@@ -42,19 +43,19 @@ export function DeviceCard({
   getStatusText,
 }: DeviceCardProps) {
   return (
-    <div className="relative overflow-hidden">
-      <Card>
+    <div className="relative overflow-hidden transition-all duration-300 ease-in-out">
+      <Card className="transition-all duration-200">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-base truncate">{device.device_name}</h3>
               <div className="flex items-center gap-2 mt-1">
                 {device.is_multidevice && (
-                  <Badge className="bg-green-500 text-white text-[10px] px-1.5 py-0">
+                  <Badge className="bg-green-500 text-white text-[10px] px-1.5 py-0 transition-all duration-200">
                     Multidevice
                   </Badge>
                 )}
-                <Badge className={cn(getStatusColor(device.status), "text-[10px] px-1.5 py-0")}>
+                <Badge className={cn(getStatusColor(device.status), "text-[10px] px-1.5 py-0 transition-all duration-300")}>
                   {getStatusText(device.status)}
                 </Badge>
               </div>
@@ -170,4 +171,4 @@ export function DeviceCard({
 
     </div>
   );
-}
+});
