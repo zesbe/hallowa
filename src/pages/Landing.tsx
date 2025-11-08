@@ -49,15 +49,33 @@ const Landing = () => {
   const [plansData, setPlansData] = useState<any[]>([]);
 
   useEffect(() => {
+    // Detect mobile for optimized animations
+    const isMobile = window.innerWidth < 768;
+
     AOS.init({
-      duration: 800,
-      easing: 'ease-in-out',
+      duration: isMobile ? 400 : 600,  // Faster on mobile
+      easing: isMobile ? 'ease-out' : 'ease-in-out',  // Simpler easing on mobile
       once: true,
-      offset: 100,
+      offset: isMobile ? 50 : 120,  // Trigger earlier on mobile
       delay: 0,
+      disable: false,  // Enable on all devices
+      startEvent: 'DOMContentLoaded',
+      throttleDelay: 99,  // Throttle for better performance
+      debounceDelay: 50,  // Debounce for smoother experience
+      anchorPlacement: 'top-bottom',
+      disableMutationObserver: false,
     });
+
     setIsReady(true);
     fetchLandingContent();
+
+    // Refresh AOS on window resize for responsive behavior
+    const handleResize = () => {
+      AOS.refresh();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Scroll Progress Bar & Parallax Effect - Optimized with RAF to prevent INP issues
@@ -645,7 +663,7 @@ const Landing = () => {
           </div>
 
           {/* Right Content - Chat Animation */}
-          <div className="relative animate-float" data-aos="fade-left" data-aos-delay="200">
+          <div className="relative animate-float" data-aos="fade-up" data-aos-delay="100">
             <div className="absolute -inset-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-3xl blur-2xl" />
             <div className="relative">
               <ChatAnimation />
@@ -708,7 +726,8 @@ const Landing = () => {
 
         <div
           className="relative transition-transform duration-100 ease-out"
-          data-aos="zoom-in"
+          data-aos="fade-up"
+          data-aos-duration="500"
           style={{ transform: `translateY(${parallaxOffset * 0.15}px)` }}
         >
           <div className="absolute -inset-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl blur-2xl opacity-20" />
@@ -747,7 +766,7 @@ const Landing = () => {
               key={index}
               className="group bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-green-500/50 hover:-translate-y-1"
               data-aos="fade-up"
-              data-aos-delay={index * 100}
+              data-aos-delay={index * 50}
             >
               <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-5 text-white shadow-lg group-hover:scale-110 transition-transform">
                 {featuresData.length > 0 ? getIcon(feature.icon) : feature.icon}
@@ -815,7 +834,7 @@ const Landing = () => {
                   key={plan.id}
                   className={`relative group ${isPopular ? 'lg:-translate-y-4' : ''}`}
                   data-aos="fade-up"
-                  data-aos-delay={index * 100}
+                  data-aos-delay={index * 50}
                 >
                   {/* Badge Container */}
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10 flex flex-col gap-2 items-center">
@@ -1017,11 +1036,11 @@ const Landing = () => {
 
         <div className="grid md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
-            <div 
+            <div
               key={index}
               className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow"
               data-aos="fade-up"
-              data-aos-delay={index * 100}
+              data-aos-delay={index * 50}
             >
               <div className="flex gap-1 mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
