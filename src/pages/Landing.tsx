@@ -31,7 +31,6 @@ import {
 
 const Landing = () => {
   const navigate = useNavigate();
-  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     AOS.init({
@@ -44,8 +43,6 @@ const Landing = () => {
 
     // Enable smooth scrolling
     document.documentElement.style.scrollBehavior = 'smooth';
-
-    setIsReady(true);
 
     return () => {
       document.documentElement.style.scrollBehavior = 'auto';
@@ -152,10 +149,6 @@ const Landing = () => {
       answer: "Kami menyediakan 24/7 customer support via live chat, email, dan WhatsApp. Response time rata-rata kurang dari 5 menit."
     }
   ];
-
-  if (!isReady) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-green-50/30 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
