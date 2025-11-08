@@ -431,6 +431,9 @@ async function connectWhatsApp(device, isRecovery = false) {
             }
           }
 
+          // Store user_id in socket for HTTP endpoint access
+          sock.deviceUserId = device.user_id;
+
           // Setup CRM message listeners to save all incoming/outgoing messages
           setupCRMMessageListeners(sock, device.id, device.user_id);
 

@@ -15,7 +15,7 @@ import {
   FileText, User, MessageSquare, Clock, Check, CheckCheck,
   X, Plus, Edit, Trash2, AlertCircle, Info
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, startTransition, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -35,11 +35,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Real database schema interfaces
 interface Contact {
   id: string;
-  name: string;
-  phone_number: string;
-  last_message?: string;
+  contact_jid: string;
+  contact_name: string;
+  contact_phone: string;
+  last_message_preview?: string;
   last_message_time?: string;
   unread_count?: number;
   is_starred?: boolean;
@@ -47,16 +49,21 @@ interface Contact {
   label?: string;
   notes?: string;
   created_at?: string;
+  device_id: string;
+  user_id: string;
 }
 
 interface Message {
   id: string;
-  content: string;
-  sender: "user" | "contact";
+  message_content: string;
+  from_me: boolean;
   timestamp: string;
-  status?: "sent" | "delivered" | "read" | "failed";
+  status?: "sent" | "delivered" | "read" | "failed" | "pending";
   media_url?: string;
-  media_type?: string;
+  message_type?: string;
+  caption?: string;
+  conversation_id: string;
+  contact_jid: string;
 }
 
 interface QuickReply {
@@ -82,6 +89,7 @@ export const CrmChat = () => {
   const [selectedDevice, setSelectedDevice] = useState<string>("");
   const [devices, setDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [chatFilter, setChatFilter] = useState<"all" | "unread" | "starred" | "archived">("all");
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [contactNotes, setContactNotes] = useState("");
@@ -97,12 +105,112 @@ export const CrmChat = () => {
 
   useEffect(() => {
     fetchDevices();
-    fetchContacts();
   }, []);
+
+  useEffect(() => {
+    if (selectedDevice) {
+      // Use startTransition to avoid blocking UI
+      startTransition(() => {
+        fetchContacts();
+      });
+    }
+  }, [selectedDevice]);
+
+  useEffect(() => {
+    if (selectedContact) {
+      // Use startTransition for non-critical updates
+      startTransition(() => {
+        fetchMessages(selectedContact.id);
+      });
+      setContactNotes(selectedContact.notes || "");
+    } else {
+      setMessages([]);
+    }
+  }, [selectedContact]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Realtime subscription for conversations
+  useEffect(() => {
+    if (!selectedDevice) return;
+
+    const channel = supabase
+      .channel('crm-conversations-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'whatsapp_conversations',
+        filter: `device_id=eq.${selectedDevice}`
+      }, async (payload) => {
+        console.log('📱 Conversation update:', payload);
+        // Refresh conversations list when any conversation changes
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await supabase
+          .from("whatsapp_conversations")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("device_id", selectedDevice)
+          .order("updated_at", { ascending: false })
+          .limit(100);
+
+        if (data) {
+          startTransition(() => {
+            setContacts(data);
+          });
+        }
+      })
+      .subscribe();
+
+    console.log('✅ Subscribed to conversations updates');
+
+    return () => {
+      console.log('🔌 Unsubscribed from conversations');
+      channel.unsubscribe();
+    };
+  }, [selectedDevice]);
+
+  // Realtime subscription for messages in selected conversation
+  useEffect(() => {
+    if (!selectedContact) return;
+
+    const channel = supabase
+      .channel(`crm-messages-${selectedContact.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'whatsapp_messages',
+        filter: `conversation_id=eq.${selectedContact.id}`
+      }, (payload) => {
+        console.log('💬 New message received:', payload);
+        // Add new message to messages list
+        setMessages(prev => [...prev, payload.new as Message]);
+        scrollToBottom();
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'whatsapp_messages',
+        filter: `conversation_id=eq.${selectedContact.id}`
+      }, (payload) => {
+        console.log('📝 Message status updated:', payload);
+        // Update message status (delivered, read, etc)
+        setMessages(prev => prev.map(msg =>
+          msg.id === payload.new.id ? payload.new as Message : msg
+        ));
+      })
+      .subscribe();
+
+    console.log('✅ Subscribed to messages for conversation:', selectedContact.contact_name);
+
+    return () => {
+      console.log('🔌 Unsubscribed from messages');
+      channel.unsubscribe();
+    };
+  }, [selectedContact]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -130,104 +238,207 @@ export const CrmChat = () => {
     }
   };
 
-  const fetchContacts = async () => {
+  const fetchContacts = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      if (!selectedDevice) {
+        setContacts([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch real WhatsApp conversations from database
       const { data, error } = await supabase
-        .from("contacts")
+        .from("whatsapp_conversations")
         .select("*")
         .eq("user_id", user.id)
-        .eq("is_group", false)
-        .order("created_at", { ascending: false });
+        .eq("device_id", selectedDevice)
+        .order("updated_at", { ascending: false })
+        .limit(100); // Limit for performance
 
       if (error) throw error;
 
-      // Add mock data for demonstration
-      const enrichedData = (data || []).map((contact: any) => ({
-        ...contact,
-        is_starred: false,
-        is_archived: false,
-        unread_count: 0,
-      }));
-
-      setContacts(enrichedData);
+      setContacts(data || []);
     } catch (error: any) {
-      toast.error("Gagal memuat kontak");
+      console.error('Error fetching conversations:', error);
+      toast.error("Gagal memuat percakapan");
     } finally {
       setLoading(false);
+    }
+  }, [selectedDevice]);
+
+  const fetchMessages = async (conversationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("whatsapp_messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("timestamp", { ascending: true });
+
+      if (error) throw error;
+
+      setMessages(data || []);
+
+      // Mark conversation as read
+      await supabase.rpc('mark_conversation_as_read', {
+        p_conversation_id: conversationId
+      });
+    } catch (error: any) {
+      console.error('Error fetching messages:', error);
+      toast.error("Gagal memuat pesan");
     }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedContact || !selectedDevice) {
-      toast.error("Pilih device dan kontak terlebih dahulu");
+    if (!newMessage.trim() || !selectedContact || !selectedDevice || sending) {
+      if (!selectedContact || !selectedDevice) {
+        toast.error("Pilih device dan kontak terlebih dahulu");
+      }
       return;
     }
 
+    // Prevent double submission
+    setSending(true);
+
     try {
-      // Create message object
-      const newMsg: Message = {
-        id: Date.now().toString(),
-        content: newMessage,
-        sender: "user",
-        timestamp: new Date().toISOString(),
-        status: "sent",
-      };
+      const messageContent = newMessage;
+      setNewMessage(""); // Clear input immediately for better UX
 
-      setMessages([...messages, newMsg]);
-      setNewMessage("");
+      // Call Edge Function to send message via Baileys
+      const { data, error } = await supabase.functions.invoke('send-crm-message', {
+        body: {
+          deviceId: selectedDevice,
+          conversationId: selectedContact.id,
+          contactJid: selectedContact.contact_jid,
+          messageContent: messageContent,
+          messageType: 'text'
+        }
+      });
 
-      // Simulate sending to WhatsApp (in production, integrate with backend)
-      toast.success("Pesan terkirim");
+      if (error) {
+        throw error;
+      }
 
-      // Update message status after delay (simulation)
-      setTimeout(() => {
-        setMessages(prev => prev.map(msg =>
-          msg.id === newMsg.id ? { ...msg, status: "delivered" as const } : msg
-        ));
-      }, 1000);
+      toast.success("Pesan terkirim ke WhatsApp!");
+
+      // Message will appear automatically via realtime subscription
+      // No need to manually add it to messages array
 
     } catch (error: any) {
-      toast.error("Gagal mengirim pesan");
+      console.error('Error sending message:', error);
+      toast.error("Gagal mengirim pesan: " + (error.message || 'Unknown error'));
+      setNewMessage(messageContent); // Restore message on error
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleToggleStar = (contactId: string) => {
-    setContacts(contacts.map(c =>
-      c.id === contactId ? { ...c, is_starred: !c.is_starred } : c
-    ));
-    toast.success("Status bintang diperbarui");
-  };
+  const handleToggleStar = async (contactId: string) => {
+    try {
+      const contact = contacts.find(c => c.id === contactId);
+      if (!contact) return;
 
-  const handleArchiveChat = (contactId: string) => {
-    setContacts(contacts.map(c =>
-      c.id === contactId ? { ...c, is_archived: !c.is_archived } : c
-    ));
-    if (selectedContact?.id === contactId) {
-      setSelectedContact(null);
+      const newStarred = !contact.is_starred;
+
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ is_starred: newStarred })
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      setContacts(contacts.map(c =>
+        c.id === contactId ? { ...c, is_starred: newStarred } : c
+      ));
+
+      if (selectedContact?.id === contactId) {
+        setSelectedContact({ ...selectedContact, is_starred: newStarred });
+      }
+
+      toast.success(newStarred ? "Ditambahkan ke starred" : "Dihapus dari starred");
+    } catch (error) {
+      console.error('Error toggling star:', error);
+      toast.error("Gagal mengupdate status");
     }
-    toast.success("Chat diarsipkan");
   };
 
-  const handleSetLabel = (contactId: string, label: string) => {
-    setContacts(contacts.map(c =>
-      c.id === contactId ? { ...c, label } : c
-    ));
-    toast.success("Label diperbarui");
+  const handleArchiveChat = async (contactId: string) => {
+    try {
+      const contact = contacts.find(c => c.id === contactId);
+      if (!contact) return;
+
+      const newArchived = !contact.is_archived;
+
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ is_archived: newArchived })
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      setContacts(contacts.map(c =>
+        c.id === contactId ? { ...c, is_archived: newArchived } : c
+      ));
+
+      if (selectedContact?.id === contactId) {
+        setSelectedContact(null);
+      }
+
+      toast.success(newArchived ? "Chat diarsipkan" : "Chat dipulihkan");
+    } catch (error) {
+      console.error('Error archiving chat:', error);
+      toast.error("Gagal mengupdate status");
+    }
+  };
+
+  const handleSetLabel = async (contactId: string, label: string) => {
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ label })
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      setContacts(contacts.map(c =>
+        c.id === contactId ? { ...c, label } : c
+      ));
+
+      if (selectedContact?.id === contactId) {
+        setSelectedContact({ ...selectedContact, label });
+      }
+
+      toast.success("Label diperbarui");
+    } catch (error) {
+      console.error('Error setting label:', error);
+      toast.error("Gagal mengupdate label");
+    }
   };
 
   const handleSaveNotes = async () => {
     if (!selectedContact) return;
 
-    setContacts(contacts.map(c =>
-      c.id === selectedContact.id ? { ...c, notes: contactNotes } : c
-    ));
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ notes: contactNotes })
+        .eq('id', selectedContact.id);
 
-    setSelectedContact({ ...selectedContact, notes: contactNotes });
-    toast.success("Notes disimpan");
+      if (error) throw error;
+
+      setContacts(contacts.map(c =>
+        c.id === selectedContact.id ? { ...c, notes: contactNotes } : c
+      ));
+
+      setSelectedContact({ ...selectedContact, notes: contactNotes });
+      toast.success("Notes disimpan");
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      toast.error("Gagal menyimpan notes");
+    }
   };
 
   const handleUseQuickReply = (reply: QuickReply) => {
@@ -268,20 +479,22 @@ export const CrmChat = () => {
     toast.success("Quick reply dihapus");
   };
 
-  const filteredContacts = contacts.filter((contact) => {
-    const matchesSearch =
-      String(contact.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(contact.phone_number || '').includes(searchQuery);
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((contact) => {
+      const matchesSearch =
+        String(contact.contact_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(contact.contact_phone || '').includes(searchQuery);
 
-    const matchesFilter =
-      chatFilter === "all" ? !contact.is_archived :
-      chatFilter === "unread" ? (contact.unread_count || 0) > 0 && !contact.is_archived :
-      chatFilter === "starred" ? contact.is_starred && !contact.is_archived :
-      chatFilter === "archived" ? contact.is_archived :
-      true;
+      const matchesFilter =
+        chatFilter === "all" ? !contact.is_archived :
+        chatFilter === "unread" ? (contact.unread_count || 0) > 0 && !contact.is_archived :
+        chatFilter === "starred" ? contact.is_starred && !contact.is_archived :
+        chatFilter === "archived" ? contact.is_archived :
+        true;
 
-    return matchesSearch && matchesFilter;
-  });
+      return matchesSearch && matchesFilter;
+    });
+  }, [contacts, searchQuery, chatFilter]);
 
   const getMessageStatusIcon = (status?: string) => {
     switch (status) {
@@ -296,12 +509,6 @@ export const CrmChat = () => {
         return <Clock className="w-3 h-3" />;
     }
   };
-
-  useEffect(() => {
-    if (selectedContact) {
-      setContactNotes(selectedContact.notes || "");
-    }
-  }, [selectedContact]);
 
   return (
     <Layout>
@@ -478,14 +685,14 @@ export const CrmChat = () => {
                           <div className="flex items-start gap-3">
                             <Avatar className="h-10 w-10 flex-shrink-0">
                               <AvatarFallback className="bg-primary/10 text-primary">
-                                {String(contact.name || 'U').substring(0, 2).toUpperCase()}
+                                {String(contact.contact_name || 'U').substring(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2 mb-1">
                                 <div className="flex items-center gap-2 min-w-0 flex-1">
                                   <p className="font-medium text-sm truncate">
-                                    {String(contact.name || 'Unknown')}
+                                    {String(contact.contact_name || 'Unknown')}
                                   </p>
                                   {contact.is_starred && (
                                     <Star className="w-3 h-3 fill-yellow-500 text-yellow-500 flex-shrink-0" />
@@ -498,7 +705,7 @@ export const CrmChat = () => {
                                 )}
                               </div>
                               <p className="text-xs text-muted-foreground truncate mb-1">
-                                {String(contact.phone_number || '')}
+                                {String(contact.contact_phone || '')}
                               </p>
                               {label && (
                                 <Badge
@@ -508,9 +715,9 @@ export const CrmChat = () => {
                                   {label.label}
                                 </Badge>
                               )}
-                              {contact.last_message && (
+                              {contact.last_message_preview && (
                                 <p className="text-xs text-muted-foreground truncate mt-1">
-                                  {String(contact.last_message)}
+                                  {String(contact.last_message_preview)}
                                 </p>
                               )}
                             </div>
@@ -541,13 +748,13 @@ export const CrmChat = () => {
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <Avatar>
                           <AvatarFallback className="bg-primary/10 text-primary">
-                            {String(selectedContact.name || 'U').substring(0, 2).toUpperCase()}
+                            {String(selectedContact.contact_name || 'U').substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium truncate">{String(selectedContact.name || 'Unknown')}</p>
+                          <p className="font-medium truncate">{String(selectedContact.contact_name || 'Unknown')}</p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {String(selectedContact.phone_number || '')}
+                            {String(selectedContact.contact_phone || '')}
                           </p>
                         </div>
                       </div>
@@ -607,29 +814,35 @@ export const CrmChat = () => {
                           <div className="text-center text-muted-foreground py-12">
                             <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-20" />
                             <p className="font-medium mb-1">Belum ada percakapan</p>
-                            <p className="text-sm">Mulai kirim pesan ke {String(selectedContact.name || 'kontak ini')}</p>
+                            <p className="text-sm">Mulai kirim pesan ke {String(selectedContact.contact_name || 'kontak ini')}</p>
                           </div>
                         )}
                         {messages.map((message) => (
                           <div
                             key={message.id}
                             className={`flex ${
-                              message.sender === "user" ? "justify-end" : "justify-start"
+                              message.from_me ? "justify-end" : "justify-start"
                             }`}
                           >
                             <div
                               className={`max-w-[75%] rounded-lg p-3 ${
-                                message.sender === "user"
+                                message.from_me
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-muted"
                               }`}
                             >
                               {message.media_url && (
                                 <div className="mb-2">
-                                  {message.media_type === "image" ? (
+                                  {message.message_type === "image" ? (
                                     <img
                                       src={message.media_url}
                                       alt="Media"
+                                      className="rounded max-w-full h-auto"
+                                    />
+                                  ) : message.message_type === "video" ? (
+                                    <video
+                                      src={message.media_url}
+                                      controls
                                       className="rounded max-w-full h-auto"
                                     />
                                   ) : (
@@ -640,11 +853,11 @@ export const CrmChat = () => {
                                   )}
                                 </div>
                               )}
-                              <p className="text-sm break-words">{message.content}</p>
+                              <p className="text-sm break-words">{message.message_content || message.caption}</p>
                               <div className="flex items-center gap-1 mt-1">
                                 <p
                                   className={`text-xs ${
-                                    message.sender === "user"
+                                    message.from_me
                                       ? "text-primary-foreground/70"
                                       : "text-muted-foreground"
                                   }`}
@@ -654,10 +867,10 @@ export const CrmChat = () => {
                                     minute: "2-digit",
                                   })}
                                 </p>
-                                {message.sender === "user" && (
+                                {message.from_me && (
                                   <span
                                     className={
-                                      message.sender === "user"
+                                      message.from_me
                                         ? "text-primary-foreground/70"
                                         : "text-muted-foreground"
                                     }
@@ -703,9 +916,15 @@ export const CrmChat = () => {
                         <Button
                           type="submit"
                           className="bg-gradient-to-r from-primary to-secondary"
-                          disabled={!newMessage.trim()}
+                          disabled={!newMessage.trim() || sending}
                         >
-                          <Send className="w-4 h-4" />
+                          {sending ? (
+                            <span className="flex items-center gap-2">
+                              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            </span>
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
                         </Button>
                       </div>
                     </form>
@@ -740,11 +959,11 @@ export const CrmChat = () => {
                     <div className="text-center pb-4 border-b">
                       <Avatar className="h-20 w-20 mx-auto mb-3">
                         <AvatarFallback className="bg-primary/10 text-primary text-2xl">
-                          {String(selectedContact.name || 'U').substring(0, 2).toUpperCase()}
+                          {String(selectedContact.contact_name || 'U').substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <p className="font-semibold text-lg">{String(selectedContact.name || 'Unknown')}</p>
-                      <p className="text-sm text-muted-foreground">{String(selectedContact.phone_number || '')}</p>
+                      <p className="font-semibold text-lg">{String(selectedContact.contact_name || 'Unknown')}</p>
+                      <p className="text-sm text-muted-foreground">{String(selectedContact.contact_phone || '')}</p>
                     </div>
 
                     {/* Contact Details */}
