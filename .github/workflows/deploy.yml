@@ -22,11 +22,16 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Rsync files to VPS (per-PR folder)
+      - name: Deploy files to VPS (per-PR folder)
         run: |
           REF=${{ github.head_ref || github.ref_name }}
           TARGET=~/apps/${REF}
-          rsync -avz --delete --exclude='.git' -e "ssh -i ~/.ssh/id_rsa" ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:$TARGET
+
+          # Create target directory on VPS
+          ssh -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "mkdir -p $TARGET"
+
+          # Package and transfer files (excluding .git)
+          tar czf - --exclude='.git' . | ssh -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd $TARGET && tar xzf -"
 
       - name: Remote deploy (build & start)
         uses: appleboy/ssh-action@v1.2.0
