@@ -47,7 +47,7 @@ jobs:
             cd $TARGET
 
             # Install dependencies (no build needed for backend)
-            npm ci
+            npm install --production
 
             # Start or restart PM2 app for this branch only
             if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
