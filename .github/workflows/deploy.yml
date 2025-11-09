@@ -46,12 +46,17 @@ jobs:
 
             cd $TARGET
 
-            # Copy .env from main app if not exists
-            if [ ! -f .env ] && [ -f ~/multi-wa-mate/.env ]; then
-              echo "Copying .env from main app..."
-              cp ~/multi-wa-mate/.env .env
-            elif [ ! -f .env ]; then
-              echo "Warning: No .env file found. App may not start correctly."
+            # Copy .env from backup or main app
+            if [ ! -f .env ]; then
+              if [ -f ~/.env.backup ]; then
+                echo "Copying .env from ~/.env.backup..."
+                cp ~/.env.backup .env
+              elif [ -f ~/multi-wa-mate/.env ]; then
+                echo "Copying .env from main app..."
+                cp ~/multi-wa-mate/.env .env
+              else
+                echo "Warning: No .env file found. App may not start correctly."
+              fi
             fi
 
             # Install dependencies (no build needed for backend)
