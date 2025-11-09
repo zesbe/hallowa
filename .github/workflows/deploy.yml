@@ -1,0 +1,47 @@
+name: Deploy to VPS (PR & Main)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event.pull_request.merged == false || github.event.action != 'closed' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start ssh-agent and add key
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Rsync files to VPS (per-PR folder)
+        run: |
+          REF=${{ github.head_ref || github.ref_name }}
+          TARGET=~/apps/${REF}
+          rsync -avz --delete --exclude='.git' ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:$TARGET
+        env:
+          SSH_AUTH_SOCK: ${{ steps.ssh-agent.outputs.ssh-auth-sock }}
+
+      - name: Remote deploy (build & start)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            REF=${{ github.head_ref || github.ref_name }}
+            TARGET=~/apps/${REF}
+            cd $TARGET
+            # ganti perintah build sesuai projectmu:
+            # contoh Node/Next:
+            npm ci || true
+            npm run build || true
+            # restart app (pm2 contoh)
+            pm2 restart all || pm2 start npm --name "app-${REF}" -- start || true
