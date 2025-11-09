@@ -42,10 +42,21 @@ jobs:
             set -e
             REF=${{ github.head_ref || github.ref_name }}
             TARGET=~/apps/${REF}
+            APP_NAME="app-${REF//\//-}"
+
             cd $TARGET
-            # ganti perintah build sesuai projectmu:
-            # contoh Node/Next:
+
+            # Install dependencies and build
             npm ci || true
             npm run build || true
-            # restart app (pm2 contoh)
-            pm2 restart all || pm2 start npm --name "app-${REF}" -- start || true
+
+            # Start or restart PM2 app for this branch only
+            if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
+              echo "Restarting existing PM2 app: $APP_NAME"
+              pm2 restart "$APP_NAME"
+            else
+              echo "Starting new PM2 app: $APP_NAME"
+              pm2 start npm --name "$APP_NAME" -- start
+            fi
+
+            pm2 save
