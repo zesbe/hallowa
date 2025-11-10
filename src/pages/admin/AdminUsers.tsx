@@ -439,19 +439,19 @@ export const AdminUsers = () => {
               <p>Loading...</p>
             ) : (
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[150px]">User</TableHead>
-                      <TableHead className="hidden md:table-cell">Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead className="hidden lg:table-cell">Subscription</TableHead>
-                      <TableHead className="hidden xl:table-cell">Status</TableHead>
-                      <TableHead className="hidden xl:table-cell">Expires</TableHead>
-                      <TableHead className="hidden sm:table-cell">Terdaftar</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">User</TableHead>
+                        <TableHead className="hidden md:table-cell">Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead className="hidden lg:table-cell">Paket</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Masa Aktif</TableHead>
+                        <TableHead className="hidden sm:table-cell">Terdaftar</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {users.map((user) => (
                       <TableRow key={user.id}>
@@ -490,7 +490,7 @@ export const AdminUsers = () => {
                             <span className="text-sm text-muted-foreground">No Plan</span>
                           )}
                         </TableCell>
-                        <TableCell className="hidden xl:table-cell">
+                        <TableCell>
                           {user.subscription ? (
                             <Badge
                               variant={
@@ -505,25 +505,47 @@ export const AdminUsers = () => {
                             <Badge variant="secondary">Inactive</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="hidden xl:table-cell">
+                        <TableCell>
                           {user.subscription?.expires_at ? (
-                            <div className="text-sm">
-                              <div className={
+                            <div className="space-y-1">
+                              <div className={`text-sm font-medium ${
                                 new Date(user.subscription.expires_at) < new Date()
-                                  ? "text-destructive font-semibold"
+                                  ? "text-destructive"
                                   : new Date(user.subscription.expires_at) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-                                  ? "text-warning font-semibold"
-                                  : "text-muted-foreground"
-                              }>
+                                  ? "text-orange-500"
+                                  : ""
+                              }`}>
                                 {new Date(user.subscription.expires_at).toLocaleDateString("id-ID", {
                                   day: '2-digit',
                                   month: 'short',
                                   year: 'numeric'
                                 })}
                               </div>
-                              {new Date(user.subscription.expires_at) < new Date() && (
-                                <Badge variant="destructive" className="text-xs mt-1">Expired</Badge>
-                              )}
+                              {(() => {
+                                const expiryDate = new Date(user.subscription.expires_at);
+                                const today = new Date();
+                                const daysRemaining = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                
+                                if (daysRemaining < 0) {
+                                  return (
+                                    <Badge variant="destructive" className="text-xs">
+                                      Kadaluarsa {Math.abs(daysRemaining)} hari lalu
+                                    </Badge>
+                                  );
+                                } else if (daysRemaining <= 7) {
+                                  return (
+                                    <Badge variant="outline" className="text-xs border-orange-500 text-orange-500">
+                                      {daysRemaining} hari lagi
+                                    </Badge>
+                                  );
+                                } else {
+                                  return (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {daysRemaining} hari lagi
+                                    </Badge>
+                                  );
+                                }
+                              })()}
                             </div>
                           ) : (
                             <span className="text-sm text-muted-foreground">-</span>
