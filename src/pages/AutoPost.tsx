@@ -500,11 +500,12 @@ export default function AutoPost() {
   const handleViewLogs = async (scheduleId: string) => {
     setViewingLogs(scheduleId);
     try {
-      const { data, error }: any = await supabase
-        .from("auto_post_logs")
+      // Fetch from message_history instead
+      const { data, error } = await supabase
+        .from("message_history")
         .select("*")
-        .eq("schedule_id", scheduleId)
-        .order("sent_at", { ascending: false })
+        .eq("broadcast_id", scheduleId)
+        .order("created_at", { ascending: false })
         .limit(50);
 
       if (error) throw error;

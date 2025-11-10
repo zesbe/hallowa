@@ -1,12 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useSubscription } from "@/hooks/useSubscription";
-import { AlertCircle, CheckCircle2, Crown } from "lucide-react";
+import { AlertCircle, CheckCircle2, Crown, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from "react-router-dom";
 
 export const SubscriptionStatus = () => {
   const { subscription, usage, loading, getLimitPercentage, isLimitReached } = useSubscription();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -156,6 +159,19 @@ export const SubscriptionStatus = () => {
             </AlertDescription>
           </Alert>
         )}
+
+        <div className="pt-4 border-t space-y-3">
+          <Button 
+            onClick={() => navigate("/pricing")}
+            className="w-full bg-gradient-to-r from-primary to-secondary text-white shadow-lg hover:shadow-xl transition-all"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Perpanjang / Upgrade Paket
+          </Button>
+          <p className="text-xs text-center text-muted-foreground">
+            Tingkatkan limit device, kontak, dan broadcast dengan upgrade paket Anda
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
