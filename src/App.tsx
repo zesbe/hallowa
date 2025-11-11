@@ -42,6 +42,9 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminRevenue from "./pages/admin/AdminRevenue";
 import AdminUserActivity from "./pages/admin/AdminUserActivity";
 import AdminMessageAnalytics from "./pages/admin/AdminMessageAnalytics";
+import AdminSubscriptionAnalytics from "./pages/admin/AdminSubscriptionAnalytics";
+import AdminChurnAnalysis from "./pages/admin/AdminChurnAnalysis";
+import AdminPaymentAnalytics from "./pages/admin/AdminPaymentAnalytics";
 import Tutorial from "./pages/Tutorial";
 import Pricing from "./pages/Pricing";
 import Payment from "./pages/Payment";
@@ -106,6 +109,9 @@ const App = () => (
             <Route path="/admin/revenue" element={<ProtectedRoute requiredRole="admin"><AdminRevenue /></ProtectedRoute>} />
             <Route path="/admin/user-activity" element={<ProtectedRoute requiredRole="admin"><AdminUserActivity /></ProtectedRoute>} />
             <Route path="/admin/message-analytics" element={<ProtectedRoute requiredRole="admin"><AdminMessageAnalytics /></ProtectedRoute>} />
+            <Route path="/admin/subscription-analytics" element={<ProtectedRoute requiredRole="admin"><AdminSubscriptionAnalytics /></ProtectedRoute>} />
+            <Route path="/admin/churn-analysis" element={<ProtectedRoute requiredRole="admin"><AdminChurnAnalysis /></ProtectedRoute>} />
+            <Route path="/admin/payment-analytics" element={<ProtectedRoute requiredRole="admin"><AdminPaymentAnalytics /></ProtectedRoute>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
