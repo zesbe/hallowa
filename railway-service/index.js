@@ -14,6 +14,7 @@ const { generatePairingCode, clearPairingCode } = require('./pairing-handler');
 const { checkAutoPostSchedules } = require('./auto-post-handler');
 const { setupCRMMessageListeners } = require('./crm-message-handler');
 const { createHTTPServer } = require('./http-server');
+const { validatePhoneNumber, validateMessage, validateMediaUrl } = require('./auth-utils');
 
 // Supabase config dari environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -1029,13 +1030,39 @@ async function processBroadcasts() {
             );
             
             processedMessage = processedMessage.replace(/\{\{?hari\}\}?/g, days[now.getDay()]);
-            
+
             if (!phoneNumber) {
               console.error('❌ Invalid contact:', contact);
               failedCount++;
               continue;
             }
-            
+
+            // === INPUT VALIDATION ===
+            // Validate phone number format
+            if (!validatePhoneNumber(phoneNumber)) {
+              console.error(`❌ Invalid phone number format: ${phoneNumber}, skipping...`);
+              failedCount++;
+              continue;
+            }
+
+            // Validate message content
+            try {
+              if (processedMessage) {
+                validateMessage(processedMessage);
+              }
+            } catch (validationError) {
+              console.error(`❌ Invalid message content: ${validationError.message}, skipping...`);
+              failedCount++;
+              continue;
+            }
+
+            // Validate media URL if present
+            if (broadcast.media_url && !validateMediaUrl(broadcast.media_url)) {
+              console.error(`❌ Invalid or unsafe media URL: ${broadcast.media_url}, skipping...`);
+              failedCount++;
+              continue;
+            }
+
             // Format phone number (ensure it has @s.whatsapp.net suffix)
             const jid = phoneNumber.includes('@') ? phoneNumber : `${phoneNumber}@s.whatsapp.net`;
             

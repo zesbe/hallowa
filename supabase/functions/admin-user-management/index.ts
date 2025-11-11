@@ -69,8 +69,34 @@ serve(async (req) => {
           throw new Error("Missing required fields: email, password, full_name");
         }
 
-        if (password.length < 6) {
-          throw new Error("Password must be at least 6 characters");
+        // Strong password validation
+        if (password.length < 12) {
+          throw new Error("Password must be at least 12 characters long");
+        }
+
+        if (!/[a-z]/.test(password)) {
+          throw new Error("Password must contain at least one lowercase letter");
+        }
+
+        if (!/[A-Z]/.test(password)) {
+          throw new Error("Password must contain at least one uppercase letter");
+        }
+
+        if (!/[0-9]/.test(password)) {
+          throw new Error("Password must contain at least one number");
+        }
+
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+          throw new Error("Password must contain at least one special character");
+        }
+
+        // Check against common weak passwords
+        const weakPasswords = [
+          'password123', 'password1234', '12345678', '123456789',
+          'qwerty123', 'qwerty1234', 'admin123', 'admin1234'
+        ];
+        if (weakPasswords.includes(password.toLowerCase())) {
+          throw new Error("Password is too common. Please choose a stronger password");
         }
 
         // Create user in auth
