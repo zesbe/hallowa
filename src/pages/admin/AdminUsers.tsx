@@ -350,7 +350,7 @@ export const AdminUsers = () => {
                 Tambah User
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md mx-4 max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingUser ? "Edit User" : "Tambah User Baru"}</DialogTitle>
                 <DialogDescription>
@@ -438,17 +438,19 @@ export const AdminUsers = () => {
             {loading ? (
               <p>Loading...</p>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+                {/* Desktop Table View - Hidden on Mobile */}
+                <div className="hidden lg:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="min-w-[150px]">User</TableHead>
-                        <TableHead className="hidden md:table-cell">Email</TableHead>
+                        <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
-                        <TableHead className="hidden lg:table-cell">Paket</TableHead>
+                        <TableHead>Paket</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Masa Aktif</TableHead>
-                        <TableHead className="hidden sm:table-cell">Terdaftar</TableHead>
+                        <TableHead>Terdaftar</TableHead>
                         <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -468,11 +470,10 @@ export const AdminUsers = () => {
                             </div>
                             <div className="min-w-0">
                               <div className="font-medium truncate">{user.full_name || "No Name"}</div>
-                              <div className="text-xs text-muted-foreground md:hidden truncate">{user.email}</div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell>
                           <div className="flex items-center gap-2">
                             <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
                             <span className="text-sm truncate">{user.email}</span>
@@ -483,7 +484,7 @@ export const AdminUsers = () => {
                             {user.role}
                           </Badge>
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell">
+                        <TableCell>
                           {user.subscription ? (
                             <Badge variant="outline">{user.subscription.plan_name}</Badge>
                           ) : (
@@ -551,7 +552,7 @@ export const AdminUsers = () => {
                             <span className="text-sm text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="hidden sm:table-cell">
+                        <TableCell>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Calendar className="w-4 h-4 shrink-0" />
                             <span className="whitespace-nowrap">{new Date(user.created_at).toLocaleDateString("id-ID")}</span>
@@ -565,21 +566,21 @@ export const AdminUsers = () => {
                               onClick={() => handleManageSubscription(user)}
                               title="Kelola Subscription"
                             >
-                              <Crown className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <Crown className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleEdit(user)}
                             >
-                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => handleDelete(user.id)}
                             >
-                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -587,14 +588,161 @@ export const AdminUsers = () => {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+                </div>
+
+                {/* Mobile Card View - Visible only on Mobile */}
+                <div className="lg:hidden space-y-4">
+                  {users.map((user) => (
+                    <Card key={user.id} className="overflow-hidden">
+                      <CardContent className="p-4">
+                        {/* User Header */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                              user.role === "admin" ? "bg-orange-500" : "bg-blue-500"
+                            }`}>
+                              {user.role === "admin" ? (
+                                <Shield className="w-5 h-5 text-white" />
+                              ) : (
+                                <User className="w-5 h-5 text-white" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold truncate">{user.full_name || "No Name"}</div>
+                              <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                            </div>
+                          </div>
+                          <Badge variant={user.role === "admin" ? "default" : "secondary"} className="shrink-0">
+                            {user.role}
+                          </Badge>
+                        </div>
+
+                        {/* User Info Grid */}
+                        <div className="space-y-3 mb-4">
+                          {/* Plan & Status */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Paket:</span>
+                            {user.subscription ? (
+                              <Badge variant="outline">{user.subscription.plan_name}</Badge>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">No Plan</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Status:</span>
+                            {user.subscription ? (
+                              <Badge
+                                variant={
+                                  user.subscription.status === "active"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {user.subscription.status}
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">Inactive</Badge>
+                            )}
+                          </div>
+
+                          {/* Expiry Date */}
+                          {user.subscription?.expires_at && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Masa Aktif:</span>
+                              <div className="text-right">
+                                <div className={`text-sm font-medium ${
+                                  new Date(user.subscription.expires_at) < new Date()
+                                    ? "text-destructive"
+                                    : new Date(user.subscription.expires_at) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                                    ? "text-orange-500"
+                                    : ""
+                                }`}>
+                                  {new Date(user.subscription.expires_at).toLocaleDateString("id-ID", {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })}
+                                </div>
+                                {(() => {
+                                  const expiryDate = new Date(user.subscription.expires_at);
+                                  const today = new Date();
+                                  const daysRemaining = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                  
+                                  if (daysRemaining < 0) {
+                                    return (
+                                      <Badge variant="destructive" className="text-xs mt-1">
+                                        Kadaluarsa {Math.abs(daysRemaining)} hari lalu
+                                      </Badge>
+                                    );
+                                  } else if (daysRemaining <= 7) {
+                                    return (
+                                      <Badge variant="outline" className="text-xs border-orange-500 text-orange-500 mt-1">
+                                        {daysRemaining} hari lagi
+                                      </Badge>
+                                    );
+                                  } else {
+                                    return (
+                                      <Badge variant="secondary" className="text-xs mt-1">
+                                        {daysRemaining} hari lagi
+                                      </Badge>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Registration Date */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Terdaftar:</span>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Calendar className="w-4 h-4 text-muted-foreground" />
+                              <span>{new Date(user.created_at).toLocaleDateString("id-ID")}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 pt-3 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleManageSubscription(user)}
+                            className="flex-1"
+                          >
+                            <Crown className="w-4 h-4 mr-2" />
+                            Subscription
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(user)}
+                            className="flex-1"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         {/* Subscription Management Dialog */}
         <Dialog open={subscriptionDialogOpen} onOpenChange={setSubscriptionDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Kelola Subscription</DialogTitle>
               <DialogDescription>
