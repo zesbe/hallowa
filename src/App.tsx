@@ -47,6 +47,7 @@ import AdminChurnAnalysis from "./pages/admin/AdminChurnAnalysis";
 import AdminPaymentAnalytics from "./pages/admin/AdminPaymentAnalytics";
 import AdminCommunication from "./pages/admin/AdminCommunication";
 import AdminNotificationTemplates from "./pages/admin/AdminNotificationTemplates";
+import AdminBroadcast from "./pages/admin/AdminBroadcast";
 import Tutorial from "./pages/Tutorial";
 import Pricing from "./pages/Pricing";
 import Payment from "./pages/Payment";
@@ -116,6 +117,7 @@ const App = () => (
             <Route path="/admin/payment-analytics" element={<ProtectedRoute requiredRole="admin"><AdminPaymentAnalytics /></ProtectedRoute>} />
             <Route path="/admin/communication" element={<ProtectedRoute requiredRole="admin"><AdminCommunication /></ProtectedRoute>} />
             <Route path="/admin/notification-templates" element={<ProtectedRoute requiredRole="admin"><AdminNotificationTemplates /></ProtectedRoute>} />
+            <Route path="/admin/broadcast" element={<ProtectedRoute requiredRole="admin"><AdminBroadcast /></ProtectedRoute>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

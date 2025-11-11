@@ -60,6 +60,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: CreditCard, label: "Payments", path: "/admin/payment-analytics" },
     { icon: Send, label: "Communication", path: "/admin/communication" },
     { icon: Mail, label: "Templates", path: "/admin/notification-templates" },
+    { icon: MessageSquare, label: "Broadcast", path: "/admin/broadcast" },
   ];
 
   return (
