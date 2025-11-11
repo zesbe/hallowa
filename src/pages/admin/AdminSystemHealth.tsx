@@ -457,41 +457,6 @@ export const AdminSystemHealth = () => {
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Supabase Database */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Database className="w-5 h-5 text-blue-500" />
-                Supabase Database
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                {getStatusIcon(health.supabase.database.status)}
-                <Badge className={getStatusColor(health.supabase.database.status)}>
-                  {getStatusText(health.supabase.database.status)}
-                </Badge>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Latency:</span>
-                  <span className="font-medium">{health.supabase.database.responseTime}ms</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tipe:</span>
-                  <span className="font-medium">PostgreSQL 15</span>
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Last checked:</span>
-                  <span>{new Date(health.supabase.database.lastChecked).toLocaleTimeString('id-ID')}</span>
-                </div>
-              </div>
-              {health.supabase.database.message && (
-                <p className="text-xs text-red-500">{health.supabase.database.message}</p>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Baileys WhatsApp Service */}
           <Card className="hover:shadow-lg transition-shadow border-2 border-primary/20">
             <CardHeader>
@@ -531,6 +496,41 @@ export const AdminSystemHealth = () => {
               </div>
               {health.baileys.message && (
                 <p className="text-xs text-muted-foreground italic">{health.baileys.message}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Supabase Database */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Database className="w-5 h-5 text-blue-500" />
+                Supabase Database
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                {getStatusIcon(health.supabase.database.status)}
+                <Badge className={getStatusColor(health.supabase.database.status)}>
+                  {getStatusText(health.supabase.database.status)}
+                </Badge>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Latency:</span>
+                  <span className="font-medium">{health.supabase.database.responseTime}ms</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tipe:</span>
+                  <span className="font-medium">PostgreSQL 15</span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Last checked:</span>
+                  <span>{new Date(health.supabase.database.lastChecked).toLocaleTimeString('id-ID')}</span>
+                </div>
+              </div>
+              {health.supabase.database.message && (
+                <p className="text-xs text-red-500">{health.supabase.database.message}</p>
               )}
             </CardContent>
           </Card>
