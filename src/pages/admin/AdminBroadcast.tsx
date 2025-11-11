@@ -175,10 +175,6 @@ export const AdminBroadcast = () => {
   };
 
   const handleSendBroadcast = async () => {
-    if (!selectedDevice) {
-      toast.error("Please select a device");
-      return;
-    }
     if (selectedContacts.length === 0) {
       toast.error("Please select at least one contact");
       return;
@@ -189,6 +185,12 @@ export const AdminBroadcast = () => {
     }
     if (!broadcastName.trim()) {
       toast.error("Please enter a broadcast name");
+      return;
+    }
+
+    // Jika ada device, validasi device selected
+    if (devices.length > 0 && !selectedDevice) {
+      toast.error("Please select a device");
       return;
     }
 
@@ -204,12 +206,15 @@ export const AdminBroadcast = () => {
         name: c.name || c.phone_number
       }));
 
+      // Pilih metode pengiriman
+      const useDevice = devices.length > 0 && selectedDevice;
+      
       // Create broadcast
       const { data: broadcast, error: broadcastError } = await supabase
         .from("broadcasts")
         .insert({
           user_id: user.id,
-          device_id: selectedDevice,
+          device_id: useDevice ? selectedDevice : null,
           name: broadcastName,
           message: message,
           status: "sending",
@@ -220,19 +225,70 @@ export const AdminBroadcast = () => {
 
       if (broadcastError) throw broadcastError;
 
-      // Queue messages
-      const messagePromises = targetContacts.map(contact => 
-        supabase.from("message_queue").insert({
-          user_id: user.id,
-          device_id: selectedDevice,
-          to_phone: contact.phone,
-          message: message,
-          message_type: "text",
-          status: "pending"
-        })
-      );
+      if (useDevice) {
+        // Method 1: Kirim via device queue (existing method)
+        const messagePromises = targetContacts.map(contact => 
+          supabase.from("message_queue").insert({
+            user_id: user.id,
+            device_id: selectedDevice,
+            to_phone: contact.phone,
+            message: message,
+            message_type: "text",
+            status: "pending"
+          })
+        );
+        await Promise.all(messagePromises);
+        toast.success(`Broadcast queued via device! Sending to ${targetContacts.length} contacts`);
+      } else {
+        // Method 2: Kirim via Baileys Cloud Service
+        toast.info("Sending via cloud service...");
+        
+        let successCount = 0;
+        let failedCount = 0;
 
-      await Promise.all(messagePromises);
+        for (const contact of targetContacts) {
+          try {
+            // Call admin broadcast edge function
+            const { data, error } = await supabase.functions.invoke('admin-broadcast-send', {
+              body: {
+                action: 'send_message',
+                user_id: user.id,
+                to: contact.phone,
+                message: message
+              }
+            });
+
+            if (error || !data?.success) {
+              failedCount++;
+              console.error(`Failed to send to ${contact.phone}:`, error || data);
+            } else {
+              successCount++;
+            }
+
+            // Tambahkan delay kecil untuk menghindari rate limit
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          } catch (err) {
+            failedCount++;
+            console.error(`Error sending to ${contact.phone}:`, err);
+          }
+        }
+
+        // Update broadcast status
+        await supabase
+          .from("broadcasts")
+          .update({
+            sent_count: successCount,
+            failed_count: failedCount,
+            status: failedCount === 0 ? "completed" : "partial"
+          })
+          .eq("id", broadcast.id);
+
+        if (successCount > 0) {
+          toast.success(`Broadcast sent via cloud! ${successCount} sent, ${failedCount} failed`);
+        } else {
+          toast.error("All messages failed to send");
+        }
+      }
 
       // Log audit
       await logAudit({
@@ -241,11 +297,10 @@ export const AdminBroadcast = () => {
         entity_id: broadcast.id,
         new_values: {
           name: broadcastName,
-          contacts_count: targetContacts.length
+          contacts_count: targetContacts.length,
+          method: useDevice ? "device" : "cloud"
         }
       });
-
-      toast.success(`Broadcast queued! Sending to ${targetContacts.length} contacts`);
       
       // Reset form
       setSelectedContacts([]);
@@ -358,14 +413,14 @@ export const AdminBroadcast = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Select Device</Label>
+              <Label>Select Device (Optional)</Label>
               <Select value={selectedDevice} onValueChange={setSelectedDevice}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose WhatsApp device" />
+                  <SelectValue placeholder={devices.length === 0 ? "Will use cloud service" : "Choose WhatsApp device"} />
                 </SelectTrigger>
                 <SelectContent>
                   {devices.length === 0 ? (
-                    <SelectItem value="none" disabled>No connected devices</SelectItem>
+                    <SelectItem value="cloud" disabled>Cloud Service (Auto)</SelectItem>
                   ) : (
                     devices.map(device => (
                       <SelectItem key={device.id} value={device.id}>
@@ -375,10 +430,14 @@ export const AdminBroadcast = () => {
                   )}
                 </SelectContent>
               </Select>
-              {devices.length === 0 && (
-                <p className="text-xs text-destructive flex items-center gap-1">
+              {devices.length === 0 ? (
+                <p className="text-xs text-blue-500 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
-                  No connected devices available
+                  Will send via cloud service (Baileys)
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Leave empty to use cloud service
                 </p>
               )}
             </div>
@@ -396,7 +455,7 @@ export const AdminBroadcast = () => {
 
             <Button
               onClick={handleSendBroadcast}
-              disabled={sending || selectedContacts.length === 0 || !selectedDevice}
+              disabled={sending || selectedContacts.length === 0}
               className="w-full"
               size="lg"
             >
@@ -408,7 +467,8 @@ export const AdminBroadcast = () => {
               ) : (
                 <>
                   <Send className="w-4 h-4 mr-2" />
-                  Send to {selectedContacts.length} Contact{selectedContacts.length !== 1 ? "s" : ""}
+                  Send to {selectedContacts.length} Contact{selectedContacts.length !== 1 ? "s" : ""} 
+                  {devices.length === 0 && " (via Cloud)"}
                 </>
               )}
             </Button>
