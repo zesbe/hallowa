@@ -1,9 +1,15 @@
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CreditCard, CheckCircle, XCircle, Clock, TrendingUp } from "lucide-react";
+import { CreditCard, CheckCircle, XCircle, Clock, TrendingUp, Edit, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "sonner";
+import { logAudit } from "@/utils/auditLogger";
 
 interface PaymentData {
   totalPayments: number;
@@ -23,6 +29,17 @@ interface PaymentData {
   }>;
 }
 
+interface PendingPayment {
+  id: string;
+  user_id: string;
+  user_name: string;
+  amount: number;
+  payment_method: string;
+  order_id: string;
+  created_at: string;
+  plan_name?: string;
+}
+
 export const AdminPaymentAnalytics = () => {
   const [data, setData] = useState<PaymentData>({
     totalPayments: 0,
@@ -37,9 +54,36 @@ export const AdminPaymentAnalytics = () => {
     recentFailures: []
   });
   const [loading, setLoading] = useState(true);
+  const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
+  const [editingPayment, setEditingPayment] = useState<PendingPayment | null>(null);
+  const [newStatus, setNewStatus] = useState<string>("");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     fetchPaymentData();
+    fetchPendingPayments();
+
+    // Real-time subscription for pending payments
+    const channel = supabase
+      .channel("pending-payments-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "payments",
+          filter: "status=eq.pending"
+        },
+        () => {
+          fetchPendingPayments();
+          fetchPaymentData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchPaymentData = async () => {
@@ -144,6 +188,112 @@ export const AdminPaymentAnalytics = () => {
       console.error("Error fetching payment data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingPayments = async () => {
+    try {
+      const { data: payments } = await supabase
+        .from("payments")
+        .select(`
+          id,
+          user_id,
+          amount,
+          payment_method,
+          order_id,
+          created_at,
+          plan_id,
+          profiles(full_name),
+          plans(name)
+        `)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      const formattedPayments: PendingPayment[] = payments?.map((payment: any) => ({
+        id: payment.id,
+        user_id: payment.user_id,
+        user_name: payment.profiles?.full_name || "Unknown",
+        amount: Number(payment.amount),
+        payment_method: payment.payment_method,
+        order_id: payment.order_id,
+        created_at: payment.created_at,
+        plan_name: payment.plans?.name
+      })) || [];
+
+      setPendingPayments(formattedPayments);
+    } catch (error) {
+      console.error("Error fetching pending payments:", error);
+    }
+  };
+
+  const handleUpdateStatus = async () => {
+    if (!editingPayment || !newStatus) return;
+
+    setIsUpdating(true);
+    try {
+      const updateData: any = { status: newStatus };
+      
+      if (newStatus === "paid") {
+        updateData.completed_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from("payments")
+        .update(updateData)
+        .eq("id", editingPayment.id);
+
+      if (error) throw error;
+
+      // Log audit
+      await logAudit({
+        action: "update",
+        entity_type: "payment",
+        entity_id: editingPayment.id,
+        old_values: { status: "pending" },
+        new_values: { status: newStatus }
+      });
+
+      toast.success(`Payment ${newStatus === "paid" ? "approved" : "rejected"} successfully`);
+      setEditingPayment(null);
+      setNewStatus("");
+      fetchPendingPayments();
+      fetchPaymentData();
+    } catch (error: any) {
+      console.error("Error updating payment:", error);
+      toast.error(error.message || "Failed to update payment");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeletePayment = async (payment: PendingPayment) => {
+    if (!confirm("Are you sure you want to delete this payment?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("payments")
+        .delete()
+        .eq("id", payment.id);
+
+      if (error) throw error;
+
+      // Log audit
+      await logAudit({
+        action: "delete",
+        entity_type: "payment",
+        entity_id: payment.id,
+        old_values: {
+          order_id: payment.order_id,
+          amount: payment.amount
+        }
+      });
+
+      toast.success("Payment deleted successfully");
+      fetchPendingPayments();
+      fetchPaymentData();
+    } catch (error: any) {
+      console.error("Error deleting payment:", error);
+      toast.error(error.message || "Failed to delete payment");
     }
   };
 
@@ -325,6 +475,70 @@ export const AdminPaymentAnalytics = () => {
           </Card>
         )}
 
+        {/* Pending Payments CRUD */}
+        {pendingPayments.length > 0 && (
+          <Card className="border-yellow-500/50">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="w-4 h-4 text-yellow-500" />
+                Pending Payments ({pendingPayments.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-medium">{payment.user_name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{payment.plan_name || "N/A"}</Badge>
+                        </TableCell>
+                        <TableCell>Rp {payment.amount.toLocaleString()}</TableCell>
+                        <TableCell>{payment.payment_method}</TableCell>
+                        <TableCell className="font-mono text-xs">{payment.order_id}</TableCell>
+                        <TableCell className="text-sm">
+                          {new Date(payment.created_at).toLocaleString("id-ID")}
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingPayment(payment);
+                              setNewStatus("");
+                            }}
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeletePayment(payment)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Recent Failures */}
         {data.recentFailures.length > 0 && (
           <Card className="border-destructive/50">
@@ -354,6 +568,51 @@ export const AdminPaymentAnalytics = () => {
           </Card>
         )}
       </div>
+
+      {/* Edit Payment Status Dialog */}
+      <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Payment Status</DialogTitle>
+            <DialogDescription>
+              Change the status of payment {editingPayment?.order_id}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">User</label>
+              <p className="text-sm text-muted-foreground">{editingPayment?.user_name}</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Amount</label>
+              <p className="text-sm text-muted-foreground">
+                Rp {editingPayment?.amount.toLocaleString()}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Status</label>
+              <Select value={newStatus} onValueChange={setNewStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Approve (Paid)</SelectItem>
+                  <SelectItem value="failed">Reject (Failed)</SelectItem>
+                  <SelectItem value="expired">Expire</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPayment(null)} disabled={isUpdating}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateStatus} disabled={!newStatus || isUpdating}>
+              {isUpdating ? "Updating..." : "Update Status"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };
