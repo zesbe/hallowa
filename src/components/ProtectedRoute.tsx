@@ -22,7 +22,12 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
           navigate("/auth");
         }
       } else if (requiredRole && role !== requiredRole) {
-        // Logged in but wrong role
+        // Admin can access all routes
+        if (role === "admin") {
+          return; // Allow admin to access user routes
+        }
+        
+        // Logged in but wrong role (for non-admin users)
         if (requiredRole === "admin") {
           navigate("/dashboard");
         } else {
@@ -40,7 +45,7 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
-  if (!user || (requiredRole && role !== requiredRole)) {
+  if (!user || (requiredRole && role !== requiredRole && role !== "admin")) {
     return null;
   }
 
