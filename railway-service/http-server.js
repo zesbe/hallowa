@@ -13,6 +13,7 @@ const {
   validateMessage,
   validateMediaUrl
 } = require('./auth-utils');
+const redisClient = require('./redis-client');
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -21,6 +22,13 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Initialize rate limiter
 const rateLimiter = new RateLimiter();
+
+// Internal API key for edge function authentication
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+
+if (!INTERNAL_API_KEY || INTERNAL_API_KEY.length < 32) {
+  console.warn('⚠️  WARNING: INTERNAL_API_KEY not set or too short. Edge function authentication will fail.');
+}
 
 // Allowed origins for CORS (configure based on your domains)
 const ALLOWED_ORIGINS = [
@@ -123,31 +131,56 @@ function createHTTPServer(activeSockets) {
             return;
           }
 
-          // Hash the API key
-          const hashedKey = hashApiKey(apiKey);
+          let userId;
+          let isInternalRequest = false;
 
-          // Verify API key in database
-          const { data: keyData, error: keyError } = await supabase
-            .from('api_keys')
-            .select('user_id, is_active')
-            .eq('api_key_hash', hashedKey)
-            .eq('is_active', true)
-            .maybeSingle();
+          // Check if this is an internal request from edge functions
+          if (INTERNAL_API_KEY && apiKey === INTERNAL_API_KEY) {
+            // Internal request - authenticated
+            isInternalRequest = true;
+            console.log('🔒 Internal API request authenticated');
+          } else {
+            // External user API request - validate against database
+            const hashedKey = hashApiKey(apiKey);
 
-          if (keyError || !keyData) {
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Unauthorized: Invalid API key' }));
-            return;
+            // Verify API key in database
+            const { data: keyData, error: keyError } = await supabase
+              .from('api_keys')
+              .select('user_id, is_active')
+              .eq('api_key_hash', hashedKey)
+              .eq('is_active', true)
+              .maybeSingle();
+
+            if (keyError || !keyData) {
+              res.writeHead(401, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Unauthorized: Invalid API key' }));
+              return;
+            }
+
+            userId = keyData.user_id;
           }
 
-          const userId = keyData.user_id;
-
           // === RATE LIMITING ===
-          const clientIdentifier = apiKey.substring(0, 16); // Use partial API key as identifier
-          if (!rateLimiter.checkLimit(clientIdentifier, 100, 60000)) {
-            res.writeHead(429, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Rate limit exceeded. Max 100 requests per minute.' }));
-            return;
+          // Skip rate limiting for internal requests
+          if (!isInternalRequest) {
+            const clientIdentifier = `api:${apiKey.substring(0, 16)}`; // Use partial API key as identifier
+
+            // Try Redis distributed rate limiting first
+            let rateLimitOk = await redisClient.checkRateLimit(clientIdentifier, 100, 60);
+
+            // Fallback to in-memory rate limiter if Redis fails
+            if (!redisClient.enabled) {
+              rateLimitOk = rateLimiter.checkLimit(clientIdentifier, 100, 60000);
+            }
+
+            if (!rateLimitOk) {
+              res.writeHead(429, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                error: 'Rate limit exceeded. Max 100 requests per minute.',
+                retryAfter: 60
+              }));
+              return;
+            }
           }
 
           // === INPUT VALIDATION ===
@@ -157,24 +190,26 @@ function createHTTPServer(activeSockets) {
             return;
           }
 
-          // Verify device ownership
-          const { data: device, error: deviceError } = await supabase
-            .from('devices')
-            .select('user_id')
-            .eq('id', deviceId)
-            .maybeSingle();
+          // Verify device ownership (skip for internal requests as they're pre-authenticated)
+          if (!isInternalRequest) {
+            const { data: device, error: deviceError } = await supabase
+              .from('devices')
+              .select('user_id')
+              .eq('id', deviceId)
+              .maybeSingle();
 
-          if (deviceError || !device) {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Device not found' }));
-            return;
-          }
+            if (deviceError || !device) {
+              res.writeHead(404, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Device not found' }));
+              return;
+            }
 
-          // Check if user owns the device
-          if (device.user_id !== userId) {
-            res.writeHead(403, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Forbidden: You do not own this device' }));
-            return;
+            // Check if user owns the device
+            if (device.user_id !== userId) {
+              res.writeHead(403, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Forbidden: You do not own this device' }));
+              return;
+            }
           }
 
           // Validate phone number format

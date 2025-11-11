@@ -53,11 +53,21 @@ serve(async (req) => {
       )
     }
 
-    // Get Baileys service URL from env
+    // Get Baileys service URL and internal API key from env
     const baileysServiceUrl = Deno.env.get('BAILEYS_SERVICE_URL')
+    const internalApiKey = Deno.env.get('INTERNAL_API_KEY')
+
     if (!baileysServiceUrl) {
       return new Response(
         JSON.stringify({ error: 'BAILEYS_SERVICE_URL not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!internalApiKey) {
+      console.error('INTERNAL_API_KEY not configured - authentication will fail')
+      return new Response(
+        JSON.stringify({ error: 'Internal authentication not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -76,11 +86,12 @@ serve(async (req) => {
       messagePayload.caption = messageContent
     }
 
-    // Send message via Railway Baileys service
+    // Send message via Railway Baileys service with internal authentication
     const response = await fetch(`${baileysServiceUrl}/send-message`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${internalApiKey}`, // 🔒 Internal API authentication
       },
       body: JSON.stringify(messagePayload),
     })

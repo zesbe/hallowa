@@ -55,12 +55,13 @@ serve(async (req) => {
 
     console.log(`Sending broadcast message to ${to} for user ${user_id}`);
 
-    // Get Baileys service URL
+    // Get Baileys service URL and internal API key
     const baileysUrl = Deno.env.get('BAILEYS_SERVICE_URL');
-    
+    const internalApiKey = Deno.env.get('INTERNAL_API_KEY');
+
     if (!baileysUrl) {
       console.warn('BAILEYS_SERVICE_URL not configured, simulating send');
-      
+
       // Simulate successful send for development
       return new Response(
         JSON.stringify({
@@ -69,19 +70,31 @@ serve(async (req) => {
           method: 'simulated',
           message: 'Development mode: message simulated'
         }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
+          status: 200
         }
       );
     }
 
-    // Send message via Baileys service
+    if (!internalApiKey) {
+      console.error('INTERNAL_API_KEY not configured - authentication will fail');
+      return new Response(
+        JSON.stringify({ error: 'Internal authentication not configured' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
+
+    // Send message via Baileys service with internal authentication
     try {
       const baileysResponse = await fetch(`${baileysUrl}/send-message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${internalApiKey}`, // 🔒 Internal API authentication
         },
         body: JSON.stringify({
           to: to,
