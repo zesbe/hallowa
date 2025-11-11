@@ -23,6 +23,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AdminLayoutProps {
@@ -35,6 +36,9 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminEmail, setAdminEmail] = useState<string>("");
+
+  // 🔒 Security: Auto-logout after 30 minutes of inactivity
+  useSessionTimeout();
 
   useEffect(() => {
     if (user?.email) {

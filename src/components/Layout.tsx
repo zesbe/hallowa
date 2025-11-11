@@ -2,6 +2,7 @@ import { ReactNode, useState } from "react";
 import { Sidebar, MobileMenuButton } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 interface LayoutProps {
   children: ReactNode;
@@ -9,6 +10,9 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // 🔒 Security: Auto-logout after 30 minutes of inactivity
+  useSessionTimeout();
 
   return (
     <div className="flex min-h-screen bg-transparent">
