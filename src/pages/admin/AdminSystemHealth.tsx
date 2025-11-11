@@ -149,42 +149,88 @@ export const AdminSystemHealth = () => {
       };
 
       try {
-        // Get Baileys service URL from environment/secrets
+        // Get Baileys service URL from environment
         const baileysUrl = import.meta.env.VITE_BAILEYS_SERVICE_URL || 'https://wa-gateway-production-5c1c.up.railway.app';
         
+        // Get connected devices info first
+        const { data: connectedDevices, count: connectedCount } = await supabase
+          .from("devices")
+          .select("server_id", { count: "exact" })
+          .eq("status", "connected");
+        
+        // Get server name from database if available
+        const serverName = connectedDevices?.[0]?.server_id || 
+                          (baileysUrl.includes('railway') ? 'Railway Production Server' : 'WhatsApp Gateway');
+        
         const baileysStart = Date.now();
-        const baileysResponse = await fetch(`${baileysUrl}/health`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          signal: AbortSignal.timeout(5000) // 5 second timeout
-        });
-        const baileysLatency = Date.now() - baileysStart;
-
-        if (baileysResponse.ok) {
-          const baileysData = await baileysResponse.json();
+        
+        // Try to fetch health endpoint with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        try {
+          const baileysResponse = await fetch(`${baileysUrl}/health`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            signal: controller.signal
+          });
           
-          // Count connected devices from database
-          const { count: connectedCount } = await supabase
-            .from("devices")
-            .select("*", { count: "exact", head: true })
-            .eq("status", "connected");
+          clearTimeout(timeoutId);
+          const baileysLatency = Date.now() - baileysStart;
 
-          baileysHealth = {
-            status: baileysLatency < 500 ? "healthy" : baileysLatency < 1000 ? "degraded" : "down",
-            responseTime: baileysLatency,
-            lastChecked: new Date().toISOString(),
-            serverName: baileysData.serverName || "Baileys WhatsApp Service",
-            version: baileysData.version || "Latest",
-            connectedSessions: connectedCount || 0,
-            message: baileysData.message || "Service operational"
-          };
-        } else {
-          baileysHealth.message = `HTTP ${baileysResponse.status}: ${baileysResponse.statusText}`;
+          if (baileysResponse.ok) {
+            const baileysData = await baileysResponse.json();
+
+            baileysHealth = {
+              status: baileysLatency < 500 ? "healthy" : baileysLatency < 1000 ? "degraded" : "down",
+              responseTime: baileysLatency,
+              lastChecked: new Date().toISOString(),
+              serverName: serverName,
+              version: baileysData.version || "v1.0",
+              connectedSessions: baileysData.activeConnections || connectedCount || 0,
+              message: `${baileysData.activeConnections || connectedCount || 0} sesi aktif`
+            };
+          } else {
+            // Endpoint returned error, but check if devices are still connected
+            if (connectedCount && connectedCount > 0) {
+              baileysHealth = {
+                status: "degraded",
+                responseTime: baileysLatency,
+                lastChecked: new Date().toISOString(),
+                serverName: serverName,
+                version: "Unknown",
+                connectedSessions: connectedCount,
+                message: `${connectedCount} sesi aktif (endpoint error: ${baileysResponse.status})`
+              };
+            } else {
+              baileysHealth.message = `HTTP ${baileysResponse.status}: ${baileysResponse.statusText}`;
+            }
+          }
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          
+          // Health endpoint failed, but check if service is actually working (devices connected)
+          if (connectedCount && connectedCount > 0) {
+            baileysHealth = {
+              status: "degraded",
+              responseTime: 0,
+              lastChecked: new Date().toISOString(),
+              serverName: serverName,
+              version: "Unknown",
+              connectedSessions: connectedCount,
+              message: `${connectedCount} sesi aktif (endpoint tidak dapat diakses)`
+            };
+          } else {
+            baileysHealth.message = fetchError.name === 'AbortError' 
+              ? 'Connection timeout' 
+              : fetchError.message || "Service tidak tersedia";
+          }
         }
       } catch (baileysError: any) {
-        baileysHealth.message = baileysError.message || "Connection failed";
+        console.error("Baileys health check error:", baileysError);
+        baileysHealth.message = baileysError.message || "Gagal memeriksa service";
       }
 
       // Check Redis (through edge function or direct check)
