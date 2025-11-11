@@ -21,7 +21,8 @@ import {
   TrendingDown,
   Send,
   Mail,
-  Smartphone
+  Smartphone,
+  Bell
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +64,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: CreditCard, label: "Payments", path: "/admin/payment-analytics" },
     { icon: Send, label: "Communication", path: "/admin/communication" },
     { icon: Mail, label: "Templates", path: "/admin/notification-templates" },
+    { icon: Bell, label: "Reminders", path: "/admin/reminders" },
   ];
 
   return (

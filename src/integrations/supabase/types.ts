@@ -1122,6 +1122,133 @@ export type Database = {
         }
         Relationships: []
       }
+      reminder_configs: {
+        Row: {
+          auto_send: boolean | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          device_id: string | null
+          id: string
+          is_active: boolean | null
+          last_sent_at: string | null
+          message_template: string
+          message_variables: Json | null
+          metadata: Json | null
+          name: string
+          reminder_type: string
+          send_time: string | null
+          target_segment: string | null
+          timezone: string | null
+          total_sent: number | null
+          trigger_days_before: number[] | null
+          updated_at: string
+        }
+        Insert: {
+          auto_send?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          device_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sent_at?: string | null
+          message_template: string
+          message_variables?: Json | null
+          metadata?: Json | null
+          name: string
+          reminder_type: string
+          send_time?: string | null
+          target_segment?: string | null
+          timezone?: string | null
+          total_sent?: number | null
+          trigger_days_before?: number[] | null
+          updated_at?: string
+        }
+        Update: {
+          auto_send?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          device_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sent_at?: string | null
+          message_template?: string
+          message_variables?: Json | null
+          metadata?: Json | null
+          name?: string
+          reminder_type?: string
+          send_time?: string | null
+          target_segment?: string | null
+          timezone?: string | null
+          total_sent?: number | null
+          trigger_days_before?: number[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_configs_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reminder_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          message_sent: string
+          metadata: Json | null
+          recipient_name: string | null
+          recipient_phone: string
+          reminder_config_id: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_sent: string
+          metadata?: Json | null
+          recipient_name?: string | null
+          recipient_phone: string
+          reminder_config_id?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_sent?: string
+          metadata?: Json | null
+          recipient_name?: string | null
+          recipient_phone?: string
+          reminder_config_id?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_logs_reminder_config_id_fkey"
+            columns: ["reminder_config_id"]
+            isOneToOne: false
+            referencedRelation: "reminder_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sessions: {
         Row: {
           auto_reply_enabled: boolean | null
