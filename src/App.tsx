@@ -38,6 +38,10 @@ import AdminLandingContent from "./pages/admin/AdminLandingContent";
 import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
 import AdminSystemHealth from "./pages/admin/AdminSystemHealth";
 import AdminUserSegments from "./pages/admin/AdminUserSegments";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminRevenue from "./pages/admin/AdminRevenue";
+import AdminUserActivity from "./pages/admin/AdminUserActivity";
+import AdminMessageAnalytics from "./pages/admin/AdminMessageAnalytics";
 import Tutorial from "./pages/Tutorial";
 import Pricing from "./pages/Pricing";
 import Payment from "./pages/Payment";
@@ -98,6 +102,10 @@ const App = () => (
             <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRole="admin"><AdminAuditLogs /></ProtectedRoute>} />
             <Route path="/admin/system-health" element={<ProtectedRoute requiredRole="admin"><AdminSystemHealth /></ProtectedRoute>} />
             <Route path="/admin/user-segments" element={<ProtectedRoute requiredRole="admin"><AdminUserSegments /></ProtectedRoute>} />
+            <Route path="/admin/analytics" element={<ProtectedRoute requiredRole="admin"><AdminAnalytics /></ProtectedRoute>} />
+            <Route path="/admin/revenue" element={<ProtectedRoute requiredRole="admin"><AdminRevenue /></ProtectedRoute>} />
+            <Route path="/admin/user-activity" element={<ProtectedRoute requiredRole="admin"><AdminUserActivity /></ProtectedRoute>} />
+            <Route path="/admin/message-analytics" element={<ProtectedRoute requiredRole="admin"><AdminMessageAnalytics /></ProtectedRoute>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

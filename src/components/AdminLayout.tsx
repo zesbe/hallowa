@@ -15,7 +15,9 @@ import {
   Video,
   FileText,
   Activity,
-  ListChecks
+  ListChecks,
+  BarChart,
+  MessageSquare
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +48,10 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: Activity, label: "System Health", path: "/admin/system-health" },
     { icon: ListChecks, label: "Audit Logs", path: "/admin/audit-logs" },
     { icon: Users, label: "User Segments", path: "/admin/user-segments" },
+    { icon: BarChart, label: "Analytics", path: "/admin/analytics" },
+    { icon: DollarSign, label: "Revenue", path: "/admin/revenue" },
+    { icon: Activity, label: "User Activity", path: "/admin/user-activity" },
+    { icon: MessageSquare, label: "Messages", path: "/admin/message-analytics" },
   ];
 
   return (
