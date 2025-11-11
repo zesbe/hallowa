@@ -14,6 +14,7 @@ export const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -81,12 +82,24 @@ export const Auth = () => {
 
         toast.success("Berhasil login!");
       } else {
+        // Validasi nomor WhatsApp
+        const cleanedNumber = whatsappNumber.replace(/\D/g, '');
+        if (!cleanedNumber.startsWith('62')) {
+          toast.error("Nomor WhatsApp harus diawali dengan 62 (format Indonesia)");
+          return;
+        }
+        if (cleanedNumber.length < 10 || cleanedNumber.length > 15) {
+          toast.error("Nomor WhatsApp tidak valid");
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
               full_name: fullName,
+              whatsapp_number: cleanedNumber,
             },
             emailRedirectTo: `${window.location.origin}/dashboard`,
           },
@@ -128,17 +141,49 @@ export const Auth = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Nama Lengkap</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Masukkan nama lengkap"
-                  required={!isLogin}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Nama Lengkap</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Masukkan nama lengkap"
+                    required={!isLogin}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="whatsapp" className="flex items-center gap-2">
+                    Nomor WhatsApp
+                    <span className="text-xs font-normal text-destructive">*wajib</span>
+                  </Label>
+                  <Input
+                    id="whatsapp"
+                    type="tel"
+                    value={whatsappNumber}
+                    onChange={(e) => setWhatsappNumber(e.target.value)}
+                    placeholder="628123456789"
+                    required={!isLogin}
+                  />
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Format: 62xxx (tanpa +/spasi/tanda hubung)
+                    </p>
+                    <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+                      <p className="text-xs text-primary font-medium mb-1">
+                        ✓ Manfaat untuk Anda:
+                      </p>
+                      <ul className="text-xs text-muted-foreground space-y-0.5 ml-4 list-disc">
+                        <li>Notifikasi penting tentang akun & layanan</li>
+                        <li>Pengingat otomatis perpanjangan plan</li>
+                        <li>Update fitur & promosi eksklusif</li>
+                        <li>Dukungan customer service prioritas</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
