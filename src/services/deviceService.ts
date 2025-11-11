@@ -41,10 +41,14 @@ export class DeviceService {
    * Get device by ID
    */
   static async getById(deviceId: string): Promise<Device> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new DeviceServiceError('User not authenticated');
+
     const { data, error } = await supabase
       .from('devices')
       .select('*')
       .eq('id', deviceId)
+      .eq('user_id', user.id)  // ✅ SECURITY: Verify ownership
       .single();
 
     if (error) throw new DeviceServiceError(error.message, error.code);
@@ -82,6 +86,9 @@ export class DeviceService {
    * Update device
    */
   static async update(deviceId: string, updates: UpdateDeviceDTO): Promise<Device> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new DeviceServiceError('User not authenticated');
+
     const { data, error } = await supabase
       .from('devices')
       .update({
@@ -89,6 +96,7 @@ export class DeviceService {
         updated_at: new Date().toISOString()
       })
       .eq('id', deviceId)
+      .eq('user_id', user.id)  // ✅ SECURITY: Verify ownership
       .select()
       .single();
 
@@ -100,6 +108,9 @@ export class DeviceService {
    * Delete device
    */
   static async delete(deviceId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new DeviceServiceError('User not authenticated');
+
     // First set status to disconnected to trigger cleanup
     await this.update(deviceId, { status: 'disconnected' });
 
@@ -110,7 +121,8 @@ export class DeviceService {
     const { error } = await supabase
       .from('devices')
       .delete()
-      .eq('id', deviceId);
+      .eq('id', deviceId)
+      .eq('user_id', user.id);  // ✅ SECURITY: Verify ownership
 
     if (error) throw new DeviceServiceError(error.message, error.code);
   }
@@ -133,12 +145,18 @@ export class DeviceService {
    * Regenerate API key
    */
   static async regenerateApiKey(deviceId: string): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new DeviceServiceError('User not authenticated');
+
     const newApiKey = crypto.randomUUID();
 
-    await supabase
+    const { error } = await supabase
       .from('devices')
       .update({ api_key: newApiKey })
-      .eq('id', deviceId);
+      .eq('id', deviceId)
+      .eq('user_id', user.id);  // ✅ SECURITY: Verify ownership
+
+    if (error) throw new DeviceServiceError(error.message, error.code);
 
     return newApiKey;
   }
@@ -147,24 +165,38 @@ export class DeviceService {
    * Fetch WhatsApp groups for device
    */
   static async fetchGroups(deviceId: string, apiKey: string): Promise<GroupsApiResponse> {
+    // ✅ SECURITY: getById now verifies ownership
     const device = await this.getById(deviceId);
 
     if (!device.server_id) {
       throw new DeviceServiceError('Device not connected to any server');
     }
 
-    const response = await fetch(`${device.server_id}/api/groups/${deviceId}`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
+    // ✅ SECURITY: Validate server_id to prevent SSRF
+    try {
+      const url = new URL(`${device.server_id}/api/groups/${deviceId}`);
+
+      // Only allow http/https protocols
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new DeviceServiceError('Invalid server protocol');
       }
-    });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new DeviceServiceError(error.error || 'Failed to fetch groups');
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new DeviceServiceError(error.error || 'Failed to fetch groups');
+      }
+
+      return await response.json();
+    } catch (err) {
+      if (err instanceof DeviceServiceError) throw err;
+      throw new DeviceServiceError('Invalid server URL');
     }
-
-    return await response.json();
   }
 }
 

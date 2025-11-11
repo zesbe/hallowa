@@ -35,10 +35,14 @@ export class BroadcastService {
    * Get broadcast by ID
    */
   static async getById(broadcastId: string): Promise<Broadcast> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new BroadcastServiceError('User not authenticated');
+
     const { data, error } = await supabase
       .from('broadcasts')
       .select('*')
       .eq('id', broadcastId)
+      .eq('user_id', user.id)  // ✅ SECURITY: Verify ownership
       .single();
 
     if (error) throw new BroadcastServiceError(error.message, error.code);
@@ -51,6 +55,18 @@ export class BroadcastService {
   static async create(broadcast: CreateBroadcastDTO): Promise<Broadcast> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new BroadcastServiceError('User not authenticated');
+
+    // ✅ SECURITY: Verify device ownership before creating broadcast
+    const { data: device } = await supabase
+      .from('devices')
+      .select('id')
+      .eq('id', broadcast.device_id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (!device) {
+      throw new BroadcastServiceError('Device not found or access denied');
+    }
 
     const { data, error } = await supabase
       .from('broadcasts')
@@ -82,6 +98,9 @@ export class BroadcastService {
    * Update broadcast
    */
   static async update(broadcastId: string, updates: Partial<Broadcast>): Promise<Broadcast> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new BroadcastServiceError('User not authenticated');
+
     const { data, error } = await supabase
       .from('broadcasts')
       .update({
@@ -89,6 +108,7 @@ export class BroadcastService {
         updated_at: new Date().toISOString()
       })
       .eq('id', broadcastId)
+      .eq('user_id', user.id)  // ✅ SECURITY: Verify ownership
       .select()
       .single();
 
@@ -100,10 +120,14 @@ export class BroadcastService {
    * Delete broadcast
    */
   static async delete(broadcastId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new BroadcastServiceError('User not authenticated');
+
     const { error } = await supabase
       .from('broadcasts')
       .delete()
-      .eq('id', broadcastId);
+      .eq('id', broadcastId)
+      .eq('user_id', user.id);  // ✅ SECURITY: Verify ownership
 
     if (error) throw new BroadcastServiceError(error.message, error.code);
   }

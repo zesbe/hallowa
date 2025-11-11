@@ -97,6 +97,9 @@ export class ContactService {
    * Update contact
    */
   static async update(contactId: string, updates: Partial<Contact>): Promise<Contact> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ContactServiceError('User not authenticated');
+
     const { data, error } = await supabase
       .from('contacts')
       .update({
@@ -104,6 +107,7 @@ export class ContactService {
         updated_at: new Date().toISOString()
       })
       .eq('id', contactId)
+      .eq('user_id', user.id)  // ✅ SECURITY: Verify ownership
       .select()
       .single();
 
@@ -115,10 +119,14 @@ export class ContactService {
    * Delete contact
    */
   static async delete(contactId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ContactServiceError('User not authenticated');
+
     const { error } = await supabase
       .from('contacts')
       .delete()
-      .eq('id', contactId);
+      .eq('id', contactId)
+      .eq('user_id', user.id);  // ✅ SECURITY: Verify ownership
 
     if (error) throw new ContactServiceError(error.message, error.code);
   }
@@ -154,10 +162,14 @@ export class ContactService {
    * Delete multiple contacts
    */
   static async bulkDelete(contactIds: string[]): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ContactServiceError('User not authenticated');
+
     const { error } = await supabase
       .from('contacts')
       .delete()
-      .in('id', contactIds);
+      .in('id', contactIds)
+      .eq('user_id', user.id);  // ✅ SECURITY: Verify ownership
 
     if (error) throw new ContactServiceError(error.message, error.code);
   }
@@ -169,11 +181,14 @@ export class ContactService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new ContactServiceError('User not authenticated');
 
+    // ✅ SECURITY: Sanitize search term to prevent injection
+    const sanitized = searchTerm.replace(/[%_]/g, '');
+
     const { data, error } = await supabase
       .from('contacts')
       .select('*')
       .eq('user_id', user.id)
-      .or(`name.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%`)
+      .or(`name.ilike.%${sanitized}%,phone_number.ilike.%${sanitized}%`)
       .order('name', { ascending: true });
 
     if (error) throw new ContactServiceError(error.message, error.code);
