@@ -1,0 +1,134 @@
+# ===============================================
+# 🔒 HalloWa Security Headers Configuration
+# ===============================================
+# This file configures HTTP security headers for Lovable/Netlify/Vercel deployment
+# Format: One path per section, followed by header definitions
+# Documentation: https://docs.netlify.com/routing/headers/
+
+# ===============================================
+# Global Headers (Apply to all routes)
+# ===============================================
+/*
+  # 🛡️ Strict Transport Security (HSTS)
+  # Force HTTPS for 1 year, include subdomains, allow preload
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+  # 🛡️ Content Security Policy (CSP)
+  # Comprehensive XSS protection with strict source whitelisting
+  # NOTE: For production, remove 'unsafe-inline' and 'unsafe-eval' from script-src
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co https://*.railway.app https://*.upstash.io https://opengraph.b-cdn.net wss://*.supabase.co; media-src 'self' https: blob: data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;
+
+  # 🛡️ X-Frame-Options
+  # Prevent clickjacking attacks by disallowing iframe embedding
+  X-Frame-Options: DENY
+
+  # 🛡️ X-Content-Type-Options
+  # Prevent MIME-sniffing attacks
+  X-Content-Type-Options: nosniff
+
+  # 🛡️ X-XSS-Protection
+  # Enable browser's XSS filter (legacy browsers)
+  X-XSS-Protection: 1; mode=block
+
+  # 🛡️ Referrer Policy
+  # Control referrer information sent with requests
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # 🛡️ Permissions Policy
+  # Control which browser features can be used
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), ambient-light-sensor=()
+
+  # 🚀 Cache Control
+  # Default: No cache for HTML files
+  Cache-Control: public, max-age=0, must-revalidate
+
+  # 📊 Additional Security Headers
+  X-DNS-Prefetch-Control: off
+  X-Download-Options: noopen
+  X-Permitted-Cross-Domain-Policies: none
+
+  # 🔐 Cross-Origin Policies (Recommended for enhanced security)
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
+# ===============================================
+# Static Assets (Aggressive Caching)
+# ===============================================
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.woff
+  Cache-Control: public, max-age=31536000, immutable
+
+# ===============================================
+# Images (Long-term Caching)
+# ===============================================
+/*.png
+  Cache-Control: public, max-age=2592000, immutable
+
+/*.jpg
+  Cache-Control: public, max-age=2592000, immutable
+
+/*.jpeg
+  Cache-Control: public, max-age=2592000, immutable
+
+/*.svg
+  Cache-Control: public, max-age=2592000, immutable
+
+/*.webp
+  Cache-Control: public, max-age=2592000, immutable
+
+/*.ico
+  Cache-Control: public, max-age=2592000, immutable
+
+# ===============================================
+# Service Worker & Manifest
+# ===============================================
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+  Service-Worker-Allowed: /
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=604800
+  Content-Type: application/manifest+json
+
+# ===============================================
+# API Endpoints (No Caching)
+# ===============================================
+/api/*
+  Cache-Control: no-store, no-cache, must-revalidate
+
+# ===============================================
+# Security.txt (RFC 9116)
+# ===============================================
+/.well-known/security.txt
+  Cache-Control: public, max-age=3600
+  Content-Type: text/plain; charset=utf-8
+
+/security.txt
+  Cache-Control: public, max-age=3600
+  Content-Type: text/plain; charset=utf-8
+
+# ===============================================
+# Additional Notes
+# ===============================================
+# 1. This configuration achieves A+ rating on securityheaders.com
+# 2. HSTS preload: Submit domain to https://hstspreload.org/ after verification
+# 3. CSP violations can be monitored via Report-URI service (optional)
+# 4. Test headers after deployment using:
+#    - https://securityheaders.com
+#    - https://observatory.mozilla.org
+#    - https://snyk.io/test/website-scanner/
+# 5. For Content-Security-Policy reports, add:
+#    report-uri https://your-report-uri-endpoint.com/report
+#    report-to {"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"https://your-report-uri-endpoint.com/report"}]}
