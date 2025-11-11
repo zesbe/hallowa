@@ -28,7 +28,7 @@ interface UsageStats {
 }
 
 export const useSubscription = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [usage, setUsage] = useState<UsageStats>({
     devices_count: 0,
@@ -135,21 +135,33 @@ export const useSubscription = () => {
   };
 
   const canAddDevice = (): boolean => {
+    // Admin has unlimited access
+    if (role === "admin") return true;
+    
     if (!subscription || !subscription.plan) return false;
     return usage.devices_count < subscription.plan.max_devices;
   };
 
   const canAddContact = (): boolean => {
+    // Admin has unlimited access
+    if (role === "admin") return true;
+    
     if (!subscription || !subscription.plan) return false;
     return usage.contacts_count < subscription.plan.max_contacts;
   };
 
   const canCreateBroadcast = (): boolean => {
+    // Admin has unlimited access
+    if (role === "admin") return true;
+    
     if (!subscription || !subscription.plan) return false;
     return usage.broadcasts_count < subscription.plan.max_broadcasts;
   };
 
   const isLimitReached = (type: 'devices' | 'contacts' | 'broadcasts'): boolean => {
+    // Admin never reaches limit
+    if (role === "admin") return false;
+    
     if (!subscription || !subscription.plan) return true;
     
     switch (type) {
@@ -165,6 +177,9 @@ export const useSubscription = () => {
   };
 
   const getLimitPercentage = (type: 'devices' | 'contacts' | 'broadcasts'): number => {
+    // Admin shows 0% (no limit)
+    if (role === "admin") return 0;
+    
     if (!subscription || !subscription.plan) return 0;
     
     switch (type) {
