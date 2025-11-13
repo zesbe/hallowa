@@ -5,6 +5,7 @@ const { useSupabaseAuthState } = require('./authStateManager');
 const { handleQRCode } = require('../../qr-handler');
 const { setupCRMMessageListeners } = require('../../crm-message-handler');
 const { logger } = require('../../logger');
+const { logConnectionEvent, updateDeviceHealth } = require('../device/deviceSecurityLogger'); // 🔒 Security logging
 
 /**
  * Request pairing code for WhatsApp connection
@@ -35,6 +36,14 @@ async function requestPairingCode(sock, device, phoneForPairing) {
             updated_at: new Date().toISOString()
           })
           .eq('id', device.id);
+
+        // 🔒 SECURITY: Log pairing code generation
+        await logConnectionEvent({
+          deviceId: device.id,
+          userId: device.user_id,
+          eventType: 'pairing_code_generated',
+          details: { phoneNumber: cleanPhone, method: 'pairing' }
+        });
 
         return true;
       }
@@ -114,6 +123,19 @@ async function handleConnectionOpen(sock, device, isRecovery) {
       }
     }
 
+    // 🔒 SECURITY: Log successful connection
+    await logConnectionEvent({
+      deviceId: device.id,
+      userId: device.user_id,
+      eventType: 'connected',
+      details: {
+        phoneNumber,
+        isRecovery,
+        server: process.env.RAILWAY_STATIC_URL || os.hostname(),
+        timestamp: new Date().toISOString()
+      }
+    });
+
     // Store user_id in socket for HTTP endpoint access
     sock.deviceUserId = device.user_id;
 
@@ -147,6 +169,21 @@ async function handleDisconnection({
   console.log('🧾 Error message:', message);
 
   activeSockets.delete(deviceId);
+
+  // 🔒 SECURITY: Log disconnection event
+  await logConnectionEvent({
+    deviceId: device.id,
+    userId: device.user_id,
+    eventType: loggedOut ? 'logout' : 'disconnected',
+    errorCode: code ? code.toString() : null,
+    errorMessage: message,
+    details: {
+      restartRequired,
+      loggedOut,
+      disconnectCode: code,
+      timestamp: new Date().toISOString()
+    }
+  });
 
   try {
     // Respect user-initiated cancel: do nothing if already disconnected
