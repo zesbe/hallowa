@@ -188,43 +188,21 @@ export const AdminSystemHealth = () => {
             message: `${healthyServers} healthy, ${totalConnected} total sessions`
           };
         } else {
-          // Fallback to old single-server check if no servers configured
-          const baileysUrl = import.meta.env.VITE_BAILEYS_SERVICE_URL || 'https://multi-wa-mate-production.up.railway.app';
+          // No servers configured
           const { count: connectedCount } = await supabase
             .from("devices")
-            .select("server_id", { count: "exact" })
+            .select("id", { count: "exact" })
             .eq("status", "connected");
 
-          const baileysStart = Date.now();
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          
-          try {
-            const baileysResponse = await fetch(`${baileysUrl}/health`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            const baileysLatency = Date.now() - baileysStart;
-
-            if (baileysResponse.ok) {
-              const baileysData = await baileysResponse.json();
-              baileysHealth = {
-                status: baileysLatency < 500 ? "healthy" : baileysLatency < 1000 ? "degraded" : "down",
-                responseTime: baileysLatency,
-                lastChecked: new Date().toISOString(),
-                serverName: "Legacy Server",
-                version: baileysData.version || "v1.0",
-                connectedSessions: connectedCount || 0,
-                message: `${connectedCount || 0} sessions (legacy mode)`
-              };
-            }
-          } catch (fetchError) {
-            clearTimeout(timeoutId);
-            baileysHealth.message = "No servers configured";
-          }
+          baileysHealth = {
+            status: "degraded",
+            responseTime: 0,
+            lastChecked: new Date().toISOString(),
+            serverName: "No servers",
+            version: "Multi-Server",
+            connectedSessions: connectedCount || 0,
+            message: `${connectedCount || 0} sessions (no backend servers configured)`
+          };
         }
       } catch (baileysError: any) {
         console.error("Baileys health check error:", baileysError);

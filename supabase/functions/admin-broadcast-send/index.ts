@@ -47,38 +47,71 @@ serve(async (req) => {
 
     console.log(`[Broadcast] User ${user.id} sending message to ${to}`);
 
-    // Get Baileys service URL and internal API key
-    const baileysUrl = Deno.env.get('BAILEYS_SERVICE_URL');
+    // Get user's first connected device with assigned server
+    const { data: device, error: deviceError } = await supabase
+      .from('devices')
+      .select(`
+        id,
+        assigned_server_id,
+        backend_servers!devices_assigned_server_id_fkey (
+          server_url,
+          is_active,
+          is_healthy
+        )
+      `)
+      .eq('user_id', targetUserId)
+      .eq('status', 'connected')
+      .not('assigned_server_id', 'is', null)
+      .limit(1)
+      .single();
+
+    if (deviceError || !device) {
+      console.error('[Broadcast] No connected device found:', deviceError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'No connected device found. Please connect a device first.'
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const server = Array.isArray(device.backend_servers) ? device.backend_servers[0] : device.backend_servers;
+    if (!server || !server.is_active || !server.is_healthy) {
+      console.error('[Broadcast] Server not available:', server);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Server not available. Please try again later.'
+        }),
+        { 
+          status: 503,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const baileysUrl = server.server_url;
     const internalApiKey = Deno.env.get('INTERNAL_API_KEY');
 
-    if (!baileysUrl) {
-      console.warn('BAILEYS_SERVICE_URL not configured, simulating send');
-
-      // Simulate successful send for development
-      return new Response(
-        JSON.stringify({
-          success: true,
-          messageId: `sim-${Date.now()}`,
-          method: 'simulated',
-          message: 'Development mode: message simulated'
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        }
-      );
-    }
-
     if (!internalApiKey) {
-      console.error('INTERNAL_API_KEY not configured - authentication will fail');
+      console.error('[Broadcast] INTERNAL_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'Internal authentication not configured' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500
+        JSON.stringify({ 
+          success: false, 
+          error: 'Internal API key not configured' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
+
+    console.log(`[Broadcast] Sending message via server: ${baileysUrl}`);
 
     // Send message via Baileys service with internal authentication
     try {
@@ -86,12 +119,13 @@ serve(async (req) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${internalApiKey}`, // 🔒 Internal API authentication
+          'Authorization': `Bearer ${internalApiKey}`
         },
         body: JSON.stringify({
-          to: to,
-          message: message,
-          userId: user_id
+          deviceId: device.id,
+          targetJid: to,
+          messageType: 'text',
+          message: message
         })
       });
 
@@ -108,8 +142,8 @@ serve(async (req) => {
         await supabase
           .from('message_history')
           .insert({
-            user_id: user.id,
-            device_id: null,
+            user_id: targetUserId,
+            device_id: device.id,
             contact_phone: to,
             message_type: 'text',
             content: message,
@@ -124,6 +158,7 @@ serve(async (req) => {
           success: true,
           messageId: result.messageId || `msg-${Date.now()}`,
           method: 'baileys',
+          server: baileysUrl,
           timestamp: new Date().toISOString()
         }),
         { 
@@ -136,30 +171,35 @@ serve(async (req) => {
       console.error('Error calling Baileys service:', fetchError);
       
       // Fallback: Queue message for later processing
-      await supabase
-        .from('message_queue')
-        .insert({
-          user_id: user.id,
-          device_id: null,
-          to_phone: to,
-          message: message,
-          message_type: 'text',
-          status: 'pending',
-          error_message: 'Baileys service unavailable, queued for retry'
-        });
+      try {
+        await supabase
+          .from('message_queue')
+          .insert({
+            user_id: targetUserId,
+            device_id: device.id,
+            to_phone: to,
+            message: message,
+            message_type: 'text',
+            status: 'pending',
+            error_message: 'Baileys service unavailable, queued for retry'
+          });
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          messageId: `queued-${Date.now()}`,
-          method: 'queued',
-          message: 'Message queued for delivery'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
-        }
-      );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            messageId: `queued-${Date.now()}`,
+            method: 'queued',
+            message: 'Message queued for delivery'
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 
+          }
+        );
+      } catch (queueError) {
+        console.error('[Broadcast] Failed to queue message:', queueError);
+        throw fetchError;
+      }
     }
 
   } catch (error: any) {

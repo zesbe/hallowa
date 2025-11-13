@@ -276,8 +276,8 @@ export default function AutoPost() {
       let errorMsg = error.message || 'Unknown error';
 
       // Add helpful hints based on error message
-      if (errorMsg.includes('BAILEYS_SERVICE_URL')) {
-        errorMsg += '\n\nℹ️ Solusi: Set BAILEYS_SERVICE_URL di Supabase Edge Functions environment variables';
+      if (errorMsg.includes('Server not available')) {
+        errorMsg += '\n\nℹ️ Solusi: Pastikan backend server dalam status healthy dan active';
       } else if (errorMsg.includes('Device not connected')) {
         errorMsg += '\n\nℹ️ Solusi: Pastikan device dalam status "Connected"';
       } else if (errorMsg.includes('Baileys service')) {

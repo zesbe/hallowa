@@ -37,10 +37,17 @@ serve(async (req) => {
       )
     }
 
-    // Verify device belongs to user
+    // Verify device belongs to user and get assigned server
     const { data: device, error: deviceError } = await supabaseClient
       .from('devices')
-      .select('*')
+      .select(`
+        *,
+        backend_servers!devices_assigned_server_id_fkey (
+          server_url,
+          is_active,
+          is_healthy
+        )
+      `)
       .eq('id', deviceId)
       .eq('user_id', user.id)
       .eq('status', 'connected')
@@ -53,16 +60,16 @@ serve(async (req) => {
       )
     }
 
-    // Get Baileys service URL and internal API key from env
-    const baileysServiceUrl = Deno.env.get('BAILEYS_SERVICE_URL')
-    const internalApiKey = Deno.env.get('INTERNAL_API_KEY')
-
-    if (!baileysServiceUrl) {
+    const server = Array.isArray(device.backend_servers) ? device.backend_servers[0] : device.backend_servers
+    if (!server || !server.is_active || !server.is_healthy) {
       return new Response(
-        JSON.stringify({ error: 'BAILEYS_SERVICE_URL not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Server not available' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    const baileysServiceUrl = server.server_url
+    const internalApiKey = Deno.env.get('INTERNAL_API_KEY')
 
     if (!internalApiKey) {
       console.error('INTERNAL_API_KEY not configured - authentication will fail')
