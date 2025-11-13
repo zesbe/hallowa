@@ -47,8 +47,8 @@ serve(async (req) => {
 
     console.log(`[Broadcast] User ${user.id} sending message to ${to}`);
 
-    // Get user's first connected device with assigned server
-    const { data: device, error: deviceError } = await supabase
+    // Try to get user's first connected device with assigned server
+    const { data: devices } = await supabase
       .from('devices')
       .select(`
         id,
@@ -62,39 +62,51 @@ serve(async (req) => {
       .eq('user_id', targetUserId)
       .eq('status', 'connected')
       .not('assigned_server_id', 'is', null)
-      .limit(1)
-      .single();
+      .limit(1);
 
-    if (deviceError || !device) {
-      console.error('[Broadcast] No connected device found:', deviceError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'No connected device found. Please connect a device first.'
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    // If no device found, try to get any active healthy server
+    let baileysUrl: string | null = null;
+    let deviceId: string | null = null;
+
+    if (devices && devices.length > 0) {
+      const device = devices[0];
+      const server = Array.isArray(device.backend_servers) ? device.backend_servers[0] : device.backend_servers;
+      
+      if (server && server.is_active && server.is_healthy) {
+        baileysUrl = server.server_url;
+        deviceId = device.id;
+        console.log(`[Broadcast] Using user's device: ${deviceId} on server: ${baileysUrl}`);
+      }
     }
 
-    const server = Array.isArray(device.backend_servers) ? device.backend_servers[0] : device.backend_servers;
-    if (!server || !server.is_active || !server.is_healthy) {
-      console.error('[Broadcast] Server not available:', server);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Server not available. Please try again later.'
-        }),
-        { 
-          status: 503,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    // If still no server, get any available server
+    if (!baileysUrl) {
+      const { data: availableServers } = await supabase
+        .from('backend_servers')
+        .select('server_url, id')
+        .eq('is_active', true)
+        .eq('is_healthy', true)
+        .order('current_load', { ascending: true })
+        .limit(1);
+
+      if (availableServers && availableServers.length > 0) {
+        baileysUrl = availableServers[0].server_url;
+        console.log(`[Broadcast] Using available server: ${baileysUrl} (no user device)`);
+      } else {
+        console.error('[Broadcast] No servers available');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'No servers available. Please try again later or connect a device.'
+          }),
+          { 
+            status: 503,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
     }
 
-    const baileysUrl = server.server_url;
     const internalApiKey = Deno.env.get('INTERNAL_API_KEY');
 
     if (!internalApiKey) {
@@ -122,7 +134,7 @@ serve(async (req) => {
           'Authorization': `Bearer ${internalApiKey}`
         },
         body: JSON.stringify({
-          deviceId: device.id,
+          deviceId: deviceId,
           targetJid: to,
           messageType: 'text',
           message: message
@@ -143,7 +155,7 @@ serve(async (req) => {
           .from('message_history')
           .insert({
             user_id: targetUserId,
-            device_id: device.id,
+            device_id: deviceId,
             contact_phone: to,
             message_type: 'text',
             content: message,
@@ -176,7 +188,7 @@ serve(async (req) => {
           .from('message_queue')
           .insert({
             user_id: targetUserId,
-            device_id: device.id,
+            device_id: deviceId,
             to_phone: to,
             message: message,
             message_type: 'text',
