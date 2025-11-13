@@ -9,35 +9,50 @@ const { supabase } = require('../../config/supabase');
 
 /**
  * Rate limit configurations per feature
+ *
+ * ⚠️ IMPORTANT: These are DEFAULT values for STANDARD users.
+ * Adjust these based on your business needs and WhatsApp limits.
+ *
+ * WhatsApp Official Limits (2025):
+ * - ~1000 messages per day per device (unofficial, varies)
+ * - Rate: ~20-30 messages per minute recommended
+ *
+ * 💡 TIPS:
+ * - Set limits BELOW WhatsApp's to prevent bans
+ * - Premium users get 3x these limits automatically
+ * - Adjust based on monitoring data
  */
 const RATE_LIMITS = {
-  // Broadcasts per user
+  // Broadcasts per user (campaigns)
   BROADCAST: {
-    MAX_PER_HOUR: 10,        // Max 10 broadcasts per hour
-    MAX_PER_DAY: 50,         // Max 50 broadcasts per day
+    MAX_PER_HOUR: 50,        // 50 broadcast campaigns per hour (reasonable for business)
+    MAX_PER_DAY: 200,        // 200 campaigns per day (generous limit)
     WINDOW_HOUR: 3600,       // 1 hour in seconds
     WINDOW_DAY: 86400,       // 24 hours in seconds
   },
 
-  // Messages per user
+  // Individual messages per user
+  // This is for ACTUAL messages sent, not campaigns
   MESSAGE: {
-    MAX_PER_MINUTE: 30,      // Max 30 messages per minute
-    MAX_PER_HOUR: 500,       // Max 500 messages per hour
+    MAX_PER_MINUTE: 100,     // 100 messages per minute (business-friendly)
+    MAX_PER_HOUR: 3000,      // 3000 messages per hour (enough for most businesses)
+    MAX_PER_DAY: 10000,      // 10k messages per day (per user, reasonable)
     WINDOW_MINUTE: 60,
     WINDOW_HOUR: 3600,
+    WINDOW_DAY: 86400,
   },
 
-  // API calls per user
+  // API calls per user (endpoint requests)
   API_CALL: {
-    MAX_PER_MINUTE: 60,      // Max 60 API calls per minute
-    MAX_PER_HOUR: 1000,      // Max 1000 API calls per hour
+    MAX_PER_MINUTE: 120,     // 120 API calls per minute (2 per second)
+    MAX_PER_HOUR: 5000,      // 5000 API calls per hour
     WINDOW_MINUTE: 60,
     WINDOW_HOUR: 3600,
   },
 
-  // Device connections per user
+  // Device connections per user (reconnection attempts)
   DEVICE_CONNECTION: {
-    MAX_PER_HOUR: 20,        // Max 20 connection attempts per hour
+    MAX_PER_HOUR: 50,        // 50 connection attempts per hour (prevent spam reconnect)
     WINDOW: 3600,
   },
 };
@@ -105,6 +120,7 @@ class UserRateLimitService {
   async checkMessageLimit(userId) {
     const minuteKey = RateLimitKey.message(userId, 'minute');
     const hourKey = RateLimitKey.message(userId, 'hour');
+    const dayKey = RateLimitKey.message(userId, 'day');
 
     const minuteAllowed = await redisClient.checkRateLimit(
       minuteKey,
@@ -118,10 +134,17 @@ class UserRateLimitService {
       RATE_LIMITS.MESSAGE.WINDOW_HOUR
     );
 
+    const dayAllowed = await redisClient.checkRateLimit(
+      dayKey,
+      RATE_LIMITS.MESSAGE.MAX_PER_DAY,
+      RATE_LIMITS.MESSAGE.WINDOW_DAY
+    );
+
     const minuteCount = await redisClient.getRateLimitCount(minuteKey);
     const hourCount = await redisClient.getRateLimitCount(hourKey);
+    const dayCount = await redisClient.getRateLimitCount(dayKey);
 
-    const allowed = minuteAllowed && hourAllowed;
+    const allowed = minuteAllowed && hourAllowed && dayAllowed;
 
     return {
       allowed,
@@ -134,6 +157,11 @@ class UserRateLimitService {
         current: hourCount,
         max: RATE_LIMITS.MESSAGE.MAX_PER_HOUR,
         remaining: Math.max(0, RATE_LIMITS.MESSAGE.MAX_PER_HOUR - hourCount),
+      },
+      perDay: {
+        current: dayCount,
+        max: RATE_LIMITS.MESSAGE.MAX_PER_DAY,
+        remaining: Math.max(0, RATE_LIMITS.MESSAGE.MAX_PER_DAY - dayCount),
       },
       message: allowed ? 'Rate limit OK' : 'Rate limit exceeded - please slow down',
     };
