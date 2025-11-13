@@ -10,15 +10,16 @@ import { Plus, Smartphone, QrCode, Trash2, RefreshCw, Copy, LogOut, Info, Rotate
 import { useEffect, useState, useCallback, useRef, useMemo, startTransition } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { 
-  requestNotificationPermission, 
-  notifyDeviceConnected, 
+import {
+  requestNotificationPermission,
+  notifyDeviceConnected,
   notifyDeviceDisconnected,
-  notifyDeviceError 
+  notifyDeviceError
 } from "@/utils/notifications";
 import { DeviceCard } from "@/components/DeviceCard";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SecureInput } from "@/components/secure"; // 🔒 XSS Protection
 
 interface Device {
   id: string;
@@ -632,13 +633,17 @@ export const Devices = () => {
                 <form onSubmit={handleCreateDevice} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="deviceName">Nama Device</Label>
-                    <Input
+                    <SecureInput
                       id="deviceName"
                       value={deviceName}
                       onChange={(e) => setDeviceName(e.target.value)}
                       placeholder="Contoh: WhatsApp Bisnis 1"
+                      maxLength={100}
                       required
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Maksimal 100 karakter. Hindari karakter spesial.
+                    </p>
                   </div>
                   <Button type="submit" className="w-full">Buat Device</Button>
                 </form>
@@ -947,18 +952,20 @@ export const Devices = () => {
                    {connectionMethod === 'pairing' && (
                     <div className="space-y-2">
                       <Label htmlFor="pairingPhone" className="text-sm font-medium">Nomor WhatsApp</Label>
-                      <Input
+                      <SecureInput
                         id="pairingPhone"
                         type="tel"
                         placeholder="62812345678"
                         value={pairingPhone}
                         onChange={(e) => setPairingPhone(e.target.value.replace(/\D/g, ''))}
+                        maxLength={20}
                         className="text-base h-11 font-mono"
                       />
                       <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-2.5 rounded-md">
                         <p className="text-xs text-amber-800 dark:text-amber-200">
                           <strong>Format:</strong> Nomor dengan kode negara (tanpa +)<br/>
-                          <strong>Contoh:</strong> 62812345678 untuk Indonesia
+                          <strong>Contoh:</strong> 62812345678 untuk Indonesia<br/>
+                          <strong>Maksimal:</strong> 20 digit
                         </p>
                       </div>
                     </div>
