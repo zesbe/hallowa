@@ -8,14 +8,19 @@ const http = require('http');
 const { supabase } = require('./config/supabase');
 const { connectWhatsApp } = require('./services/whatsapp/connectionManager');
 const { checkDevices } = require('./services/device/deviceManager');
-const { processBroadcasts } = require('./services/broadcast/broadcastProcessor');
+const { checkAndQueueBroadcasts } = require('./services/broadcast/queuedBroadcastProcessor');
 const { checkScheduledBroadcasts } = require('./services/broadcast/scheduledBroadcasts');
 const { healthCheckPing } = require('./services/health/healthCheck');
 const { checkAutoPostSchedules } = require('./auto-post-handler');
 const { createHTTPServer } = require('./http-server');
+const { createBroadcastWorker, createQueueEvents } = require('./jobs/broadcastQueue');
 
 // Store active WhatsApp sockets
 const activeSockets = new Map();
+
+// Store BullMQ worker and queue events for graceful shutdown
+let broadcastWorker = null;
+let queueEvents = null;
 
 /**
  * Start the WhatsApp Baileys Service
@@ -23,7 +28,7 @@ const activeSockets = new Map();
  */
 async function startService() {
   console.log('🚀 WhatsApp Baileys Service Started');
-  console.log('📡 Using polling mechanism (optimized intervals)');
+  console.log('📡 Using hybrid architecture: Polling + BullMQ Queue');
 
   // Start HTTP server for CRM message sending
   const httpServer = createHTTPServer(activeSockets);
@@ -49,21 +54,38 @@ async function startService() {
     console.log(`📡 Endpoints: /health, /send-message`);
   });
 
+  // 🆕 Start BullMQ Worker for broadcast processing
+  console.log('🔧 Starting BullMQ broadcast worker...');
+  try {
+    broadcastWorker = createBroadcastWorker(activeSockets);
+    queueEvents = createQueueEvents();
+
+    if (broadcastWorker) {
+      console.log('✅ BullMQ worker started - broadcasts will be processed via queue');
+    } else {
+      console.warn('⚠️  BullMQ worker not started - check UPSTASH_REDIS_URL configuration');
+      console.warn('⚠️  Falling back to polling mode for broadcast processing');
+    }
+  } catch (error) {
+    console.error('❌ Failed to start BullMQ worker:', error);
+    console.warn('⚠️  Falling back to polling mode for broadcast processing');
+  }
+
   // Initial check
   console.log('🔍 Initial check for pending connections...');
   await checkDevices(activeSockets, connectWhatsApp);
 
   // Poll every 10 seconds (reduced from 5s to save resources)
   setInterval(() => checkDevices(activeSockets, connectWhatsApp), 10000);
-  console.log('⏱️ Polling started (every 10 seconds)');
+  console.log('⏱️ Device check polling started (every 10 seconds)');
 
   // Check scheduled broadcasts every 30 seconds (reduced from 10s)
   setInterval(checkScheduledBroadcasts, 30000);
   console.log('⏰ Scheduled broadcast check started (every 30 seconds)');
 
-  // Process broadcasts every 10 seconds (reduced from 3s)
-  setInterval(() => processBroadcasts(activeSockets, connectWhatsApp), 10000);
-  console.log('📤 Broadcast processing started (every 10 seconds)');
+  // 🆕 Check and queue broadcasts every 15 seconds (NEW - lighter than direct processing)
+  setInterval(checkAndQueueBroadcasts, 15000);
+  console.log('📥 Broadcast queueing started (every 15 seconds)');
 
   // Health check ping every 60 seconds (reduced from 30s)
   setInterval(() => healthCheckPing(activeSockets), 60000);
@@ -214,10 +236,43 @@ startService().catch((error) => {
 
 // Keep process alive
 process.on('SIGINT', async () => {
-  console.log('🛑 Shutting down...');
+  console.log('🛑 Shutting down gracefully...');
+
+  // Close BullMQ worker and queue events
+  if (broadcastWorker) {
+    console.log('🛑 Closing BullMQ worker...');
+    await broadcastWorker.close();
+  }
+
+  if (queueEvents) {
+    console.log('🛑 Closing queue events listener...');
+    await queueEvents.close();
+  }
+
+  // Disconnect all WhatsApp sockets
   for (const [deviceId, sock] of activeSockets) {
     console.log(`🔌 Disconnecting device: ${deviceId}`);
     sock?.end();
   }
+
+  console.log('✅ Shutdown complete');
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('🛑 Received SIGTERM, shutting down gracefully...');
+
+  if (broadcastWorker) {
+    await broadcastWorker.close();
+  }
+
+  if (queueEvents) {
+    await queueEvents.close();
+  }
+
+  for (const [deviceId, sock] of activeSockets) {
+    sock?.end();
+  }
+
   process.exit(0);
 });

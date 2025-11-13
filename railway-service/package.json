@@ -7,8 +7,10 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^7.0.0-rc.6",
     "@supabase/supabase-js": "^2.45.0",
+    "@whiskeysockets/baileys": "^7.0.0-rc.6",
+    "bullmq": "^5.63.1",
+    "ioredis": "^5.8.2",
     "qrcode": "^1.5.3",
     "qrcode-terminal": "^0.12.0"
   },

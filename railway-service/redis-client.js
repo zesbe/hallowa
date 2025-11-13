@@ -193,6 +193,116 @@ class RedisClient {
       console.error('Redis reset rate limit error:', error);
     }
   }
+
+  // 🗄️ Cache Management
+  /**
+   * Set cache value with TTL
+   * @param {string} key - Cache key
+   * @param {any} value - Value to cache (will be JSON stringified)
+   * @param {number} ttl - Time to live in seconds (default: 1 hour)
+   * @returns {Promise<boolean>} Success status
+   */
+  async cacheSet(key, value, ttl = 3600) {
+    if (!this.enabled) {
+      return false;
+    }
+
+    try {
+      const cacheKey = `cache:${key}`;
+      const serialized = JSON.stringify(value);
+      const result = await this.execute(['SET', cacheKey, serialized, 'EX', ttl]);
+      return result === 'OK';
+    } catch (error) {
+      console.error('Redis cacheSet error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get cache value
+   * @param {string} key - Cache key
+   * @returns {Promise<any|null>} Cached value or null if not found
+   */
+  async cacheGet(key) {
+    if (!this.enabled) {
+      return null;
+    }
+
+    try {
+      const cacheKey = `cache:${key}`;
+      const cached = await this.execute(['GET', cacheKey]);
+
+      if (!cached) {
+        return null;
+      }
+
+      return JSON.parse(cached);
+    } catch (error) {
+      console.error('Redis cacheGet error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Delete cache value
+   * @param {string} key - Cache key
+   */
+  async cacheDelete(key) {
+    if (!this.enabled) {
+      return;
+    }
+
+    try {
+      const cacheKey = `cache:${key}`;
+      await this.execute(['DEL', cacheKey]);
+    } catch (error) {
+      console.error('Redis cacheDelete error:', error);
+    }
+  }
+
+  /**
+   * Check if cache key exists
+   * @param {string} key - Cache key
+   * @returns {Promise<boolean>} True if key exists
+   */
+  async cacheExists(key) {
+    if (!this.enabled) {
+      return false;
+    }
+
+    try {
+      const cacheKey = `cache:${key}`;
+      const exists = await this.execute(['EXISTS', cacheKey]);
+      return exists === 1;
+    } catch (error) {
+      console.error('Redis cacheExists error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Clear all cache with pattern
+   * @param {string} pattern - Key pattern (e.g., "contact:*")
+   */
+  async cacheClearPattern(pattern) {
+    if (!this.enabled) {
+      return;
+    }
+
+    try {
+      const cachePattern = `cache:${pattern}`;
+      // Note: KEYS command should be used carefully in production
+      // For large datasets, consider using SCAN instead
+      const keys = await this.execute(['KEYS', cachePattern]);
+
+      if (keys && keys.length > 0) {
+        await this.execute(['DEL', ...keys]);
+        console.log(`🗑️  Cleared ${keys.length} cache entries matching pattern: ${pattern}`);
+      }
+    } catch (error) {
+      console.error('Redis cacheClearPattern error:', error);
+    }
+  }
 }
 
 module.exports = new RedisClient();
