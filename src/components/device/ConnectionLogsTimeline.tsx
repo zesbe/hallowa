@@ -97,7 +97,7 @@ export const ConnectionLogsTimeline: React.FC<ConnectionLogsTimelineProps> = ({
       const offset = currentPage * safePageSize;
 
       let query = supabase
-        .from('device_connection_logs')
+        .from('device_connection_logs' as any)
         .select('*')
         .eq('device_id', deviceId)
         .order('timestamp', { ascending: false })
@@ -119,7 +119,7 @@ export const ConnectionLogsTimeline: React.FC<ConnectionLogsTimelineProps> = ({
         return;
       }
 
-      setLogs(data || []);
+      setLogs((data as any) || []);
       setHasMore(data && data.length === safePageSize);
 
     } catch (err: any) {

@@ -69,7 +69,7 @@ export const DeviceHealthCard: React.FC<DeviceHealthCardProps> = ({
   const fetchHealthMetrics = async () => {
     try {
       const { data, error: rpcError } = await supabase
-        .rpc('get_device_health_summary', {
+        .rpc('get_device_health_summary' as any, {
           p_device_id: deviceId
         });
 
@@ -79,7 +79,7 @@ export const DeviceHealthCard: React.FC<DeviceHealthCardProps> = ({
         return;
       }
 
-      if (data && data.length > 0) {
+      if (data && Array.isArray(data) && data.length > 0) {
         setHealth(data[0]);
         setError(null);
       } else {
