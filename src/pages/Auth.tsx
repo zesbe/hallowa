@@ -94,12 +94,22 @@ export const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) {
+          // 🔒 SECURITY: Log failed login attempt
+          await supabase.from('auth_audit_logs').insert({
+            email,
+            event_type: 'login_failed',
+            login_method: 'user_page',
+            failure_reason: error.message,
+            ip_address: null, // Browser doesn't expose IP
+            user_agent: navigator.userAgent
+          });
+
           if (error.message.includes("Invalid login credentials")) {
             toast.error("Email atau password salah");
           } else {
@@ -107,6 +117,46 @@ export const Auth = () => {
           }
           return;
         }
+
+        // 🔒 SECURITY: Check if user is admin - REJECT admin login from user page
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .single();
+        
+        if (roleData?.role === "admin") {
+          // 🔒 SECURITY: Log admin rejection
+          await supabase.from('auth_audit_logs').insert({
+            user_id: data.user.id,
+            email,
+            event_type: 'login_failed',
+            login_method: 'user_page',
+            failure_reason: 'Admin attempted login from user page',
+            ip_address: null,
+            user_agent: navigator.userAgent
+          });
+
+          await supabase.auth.signOut();
+          toast.error("⚠️ Admin harus login melalui halaman admin", {
+            duration: 5000,
+            action: {
+              label: "Ke Halaman Admin",
+              onClick: () => navigate("/admin/login"),
+            },
+          });
+          return;
+        }
+
+        // 🔒 SECURITY: Log successful login
+        await supabase.from('auth_audit_logs').insert({
+          user_id: data.user.id,
+          email,
+          event_type: 'login_success',
+          login_method: 'user_page',
+          ip_address: null,
+          user_agent: navigator.userAgent
+        });
 
         toast.success("Berhasil login!");
       } else {
@@ -131,7 +181,7 @@ export const Auth = () => {
         // 🔒 SECURITY: Sanitize user inputs before storing
         const sanitizedFullName = sanitizeText(fullName);
 
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -144,12 +194,34 @@ export const Auth = () => {
         });
 
         if (error) {
+          // 🔒 SECURITY: Log failed signup
+          await supabase.from('auth_audit_logs').insert({
+            email,
+            event_type: 'signup_failed',
+            login_method: 'user_page',
+            failure_reason: error.message,
+            ip_address: null,
+            user_agent: navigator.userAgent
+          });
+
           if (error.message.includes("already registered")) {
             toast.error("Email sudah terdaftar");
           } else {
             toast.error("Pendaftaran gagal. Silakan coba lagi.");
           }
           return;
+        }
+
+        // 🔒 SECURITY: Log successful signup
+        if (data.user) {
+          await supabase.from('auth_audit_logs').insert({
+            user_id: data.user.id,
+            email,
+            event_type: 'signup_success',
+            login_method: 'user_page',
+            ip_address: null,
+            user_agent: navigator.userAgent
+          });
         }
 
         toast.success("Akun berhasil dibuat! Silakan login.");

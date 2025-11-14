@@ -34,6 +34,7 @@ import AdminFinancial from "./pages/admin/AdminFinancial";
 import AdminTutorials from "./pages/admin/AdminTutorials";
 import AdminLandingContent from "./pages/admin/AdminLandingContent";
 import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
+import AdminAuthLogs from "./pages/admin/AdminAuthLogs";
 import AdminSystemHealth from "./pages/admin/AdminSystemHealth";
 import AdminUserSegments from "./pages/admin/AdminUserSegments";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
@@ -102,6 +103,7 @@ const App = () => (
             <Route path="/admin/tutorials" element={<ProtectedRoute requiredRole="admin"><AdminTutorials /></ProtectedRoute>} />
             <Route path="/admin/landing-content" element={<ProtectedRoute requiredRole="admin"><AdminLandingContent /></ProtectedRoute>} />
             <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRole="admin"><AdminAuditLogs /></ProtectedRoute>} />
+            <Route path="/admin/auth-logs" element={<ProtectedRoute requiredRole="admin"><AdminAuthLogs /></ProtectedRoute>} />
             <Route path="/admin/system-health" element={<ProtectedRoute requiredRole="admin"><AdminSystemHealth /></ProtectedRoute>} />
             <Route path="/admin/user-segments" element={<ProtectedRoute requiredRole="admin"><AdminUserSegments /></ProtectedRoute>} />
             <Route path="/admin/analytics" element={<ProtectedRoute requiredRole="admin"><AdminAnalytics /></ProtectedRoute>} />

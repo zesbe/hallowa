@@ -61,6 +61,18 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
+    // 🔒 SECURITY: Log logout
+    if (user) {
+      await supabase.from('auth_audit_logs').insert({
+        user_id: user.id,
+        email: user.email || '',
+        event_type: 'logout',
+        login_method: role === 'admin' ? 'admin_page' : 'user_page',
+        ip_address: null,
+        user_agent: navigator.userAgent
+      });
+    }
+
     await supabase.auth.signOut();
     setUser(null);
     setRole(null);
