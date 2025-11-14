@@ -52,57 +52,57 @@ export const AdminLogin = () => {
         password,
       });
 
-      if (error) {
-        // 🔒 SECURITY: Log failed admin login attempt
-        await supabase.from('auth_audit_logs').insert({
-          email,
-          event_type: 'login_failed',
-          login_method: 'admin_page',
-          failure_reason: error.message,
-          ip_address: null,
-          user_agent: navigator.userAgent
-        });
+        if (error) {
+          // 🔒 SECURITY: Log failed admin login attempt
+          await supabase.from('auth_audit_logs' as any).insert({
+            email,
+            event_type: 'login_failed',
+            login_method: 'admin_page',
+            failure_reason: error.message,
+            ip_address: null,
+            user_agent: navigator.userAgent
+          });
 
-        toast.error("Email atau password salah");
-        return;
-      }
+          toast.error("Email atau password salah");
+          return;
+        }
 
-      // 🔒 SECURITY: Check if user is admin
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", data.user.id)
-        .single();
+        // 🔒 SECURITY: Check if user is admin
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .single();
 
-      if (roleData?.role !== "admin") {
-        // 🔒 SECURITY: Log non-admin attempt to access admin page
-        await supabase.from('auth_audit_logs').insert({
+        if (roleData?.role !== "admin") {
+          // 🔒 SECURITY: Log non-admin attempt to access admin page
+          await supabase.from('auth_audit_logs' as any).insert({
+            user_id: data.user.id,
+            email,
+            event_type: 'login_failed',
+            login_method: 'admin_page',
+            failure_reason: 'Non-admin user attempted admin login',
+            ip_address: null,
+            user_agent: navigator.userAgent
+          });
+
+          await supabase.auth.signOut();
+          toast.error("Akses ditolak. Anda bukan admin.");
+          return;
+        }
+
+        // 🔒 SECURITY: Log successful admin login
+        await supabase.from('auth_audit_logs' as any).insert({
           user_id: data.user.id,
           email,
-          event_type: 'login_failed',
+          event_type: 'login_success',
           login_method: 'admin_page',
-          failure_reason: 'Non-admin user attempted admin login',
           ip_address: null,
           user_agent: navigator.userAgent
         });
 
-        await supabase.auth.signOut();
-        toast.error("Akses ditolak. Anda bukan admin.");
-        return;
-      }
-
-      // 🔒 SECURITY: Log successful admin login
-      await supabase.from('auth_audit_logs').insert({
-        user_id: data.user.id,
-        email,
-        event_type: 'login_success',
-        login_method: 'admin_page',
-        ip_address: null,
-        user_agent: navigator.userAgent
-      });
-
-      toast.success("Login berhasil!");
-      navigate("/admin/dashboard");
+        toast.success("Login berhasil!");
+        navigate("/admin/dashboard");
     } catch (error: any) {
       toast.error(error.message);
     } finally {

@@ -36,7 +36,7 @@ export default function AdminAuthLogs() {
   const fetchLogs = async () => {
     try {
       let query = supabase
-        .from('auth_audit_logs')
+        .from('auth_audit_logs' as any)
         .select('*')
         .order('created_at', { ascending: false })
         .limit(200);
@@ -44,7 +44,7 @@ export default function AdminAuthLogs() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setLogs(data || []);
+      setLogs((data as any) || []);
     } catch (error) {
       console.error('Error fetching auth logs:', error);
     } finally {

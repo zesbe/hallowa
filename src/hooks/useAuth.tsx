@@ -63,7 +63,7 @@ export const useAuth = () => {
   const signOut = async () => {
     // 🔒 SECURITY: Log logout
     if (user) {
-      await supabase.from('auth_audit_logs').insert({
+      await supabase.from('auth_audit_logs' as any).insert({
         user_id: user.id,
         email: user.email || '',
         event_type: 'logout',

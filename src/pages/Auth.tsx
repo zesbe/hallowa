@@ -101,7 +101,7 @@ export const Auth = () => {
 
         if (error) {
           // 🔒 SECURITY: Log failed login attempt
-          await supabase.from('auth_audit_logs').insert({
+          await supabase.from('auth_audit_logs' as any).insert({
             email,
             event_type: 'login_failed',
             login_method: 'user_page',
@@ -127,7 +127,7 @@ export const Auth = () => {
         
         if (roleData?.role === "admin") {
           // 🔒 SECURITY: Log admin rejection
-          await supabase.from('auth_audit_logs').insert({
+          await supabase.from('auth_audit_logs' as any).insert({
             user_id: data.user.id,
             email,
             event_type: 'login_failed',
@@ -149,7 +149,7 @@ export const Auth = () => {
         }
 
         // 🔒 SECURITY: Log successful login
-        await supabase.from('auth_audit_logs').insert({
+        await supabase.from('auth_audit_logs' as any).insert({
           user_id: data.user.id,
           email,
           event_type: 'login_success',
@@ -195,7 +195,7 @@ export const Auth = () => {
 
         if (error) {
           // 🔒 SECURITY: Log failed signup
-          await supabase.from('auth_audit_logs').insert({
+          await supabase.from('auth_audit_logs' as any).insert({
             email,
             event_type: 'signup_failed',
             login_method: 'user_page',
@@ -214,7 +214,7 @@ export const Auth = () => {
 
         // 🔒 SECURITY: Log successful signup
         if (data.user) {
-          await supabase.from('auth_audit_logs').insert({
+          await supabase.from('auth_audit_logs' as any).insert({
             user_id: data.user.id,
             email,
             event_type: 'signup_success',
