@@ -86,8 +86,19 @@ export default function Settings() {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      localStorage.clear();
-      sessionStorage.clear();
+      
+      // 🔒 SECURITY: Clear only app-specific storage
+      const keysToRemove = [
+        'wapanels-theme',
+        'sidebar-scroll-position',
+        'quick-message'
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+      
       toast.success("Berhasil logout");
       window.location.href = "/auth";
     } catch (error) {

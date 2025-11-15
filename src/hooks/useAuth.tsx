@@ -44,13 +44,13 @@ export const useAuth = () => {
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching role:", error);
         setRole("user"); // Default to user role
       } else {
-        setRole(data?.role as UserRole);
+        setRole((data?.role as UserRole) || "user");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -76,9 +76,20 @@ export const useAuth = () => {
     await supabase.auth.signOut();
     setUser(null);
     setRole(null);
-    // Clear all storage
-    localStorage.clear();
-    sessionStorage.clear();
+    
+    // 🔒 SECURITY: Clear only app-specific storage, not all storage
+    // This prevents accidentally clearing data from other apps on same domain
+    const keysToRemove = [
+      'wapanels-theme', // Theme preference
+      'sidebar-scroll-position', // Sidebar state
+      'quick-message' // Template quick message
+    ];
+    
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    });
+    
     // Force reload to ensure clean state
     window.location.href = "/auth";
   };

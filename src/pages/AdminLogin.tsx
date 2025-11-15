@@ -26,7 +26,7 @@ export const AdminLogin = () => {
             .from("user_roles")
             .select("role")
             .eq("user_id", session.user.id)
-            .single();
+            .maybeSingle();
 
           if (data?.role === "admin") {
             navigate("/admin/dashboard");
@@ -72,7 +72,7 @@ export const AdminLogin = () => {
           .from("user_roles")
           .select("role")
           .eq("user_id", data.user.id)
-          .single();
+          .maybeSingle();
 
         if (roleData?.role !== "admin") {
           // 🔒 SECURITY: Log non-admin attempt to access admin page

@@ -36,7 +36,7 @@ export const Auth = () => {
           .from("user_roles")
           .select("role")
           .eq("user_id", session.user.id)
-          .single();
+          .maybeSingle();
         
         if (roleData?.role === "admin") {
           navigate("/admin/dashboard");
@@ -55,7 +55,7 @@ export const Auth = () => {
             .from("user_roles")
             .select("role")
             .eq("user_id", session.user.id)
-            .single();
+            .maybeSingle();
           
           if (roleData?.role === "admin") {
             navigate("/admin/dashboard");
@@ -123,7 +123,7 @@ export const Auth = () => {
           .from("user_roles")
           .select("role")
           .eq("user_id", data.user.id)
-          .single();
+          .maybeSingle();
         
         if (roleData?.role === "admin") {
           // 🔒 SECURITY: Log admin rejection

@@ -31,8 +31,19 @@ export const useSessionTimeout = (
   const logout = useCallback(async () => {
     try {
       await supabase.auth.signOut();
-      localStorage.clear();
-      sessionStorage.clear();
+      
+      // 🔒 SECURITY: Clear only app-specific storage
+      const keysToRemove = [
+        'wapanels-theme',
+        'sidebar-scroll-position',
+        'quick-message'
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+      
       toast.error('Session expired due to inactivity. Please login again.');
       navigate('/auth');
     } catch (error) {
