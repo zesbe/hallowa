@@ -89,6 +89,45 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_audit_logs: {
+        Row: {
+          created_at: string
+          email: string
+          event_type: string
+          failure_reason: string | null
+          id: string
+          ip_address: string | null
+          login_method: string | null
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          event_type: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          login_method?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          event_type?: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          login_method?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       auto_post_schedules: {
         Row: {
           created_at: string
@@ -539,6 +578,183 @@ export type Database = {
           },
         ]
       }
+      device_connection_logs: {
+        Row: {
+          connection_duration_seconds: number | null
+          created_at: string | null
+          details: Json | null
+          device_id: string
+          error_code: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          timestamp: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          connection_duration_seconds?: number | null
+          created_at?: string | null
+          details?: Json | null
+          device_id: string
+          error_code?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          timestamp?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          connection_duration_seconds?: number | null
+          created_at?: string | null
+          details?: Json | null
+          device_id?: string
+          error_code?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_connection_logs_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_health_metrics: {
+        Row: {
+          average_response_time_ms: number | null
+          date: string
+          device_id: string
+          error_count_today: number | null
+          error_rate_percent: number | null
+          health_issues: Json | null
+          health_status: string | null
+          id: string
+          last_error_at: string | null
+          last_error_message: string | null
+          last_heartbeat: string | null
+          messages_delivered_today: number | null
+          messages_failed_today: number | null
+          messages_sent_today: number | null
+          reconnect_count_today: number | null
+          updated_at: string | null
+          uptime_minutes: number | null
+          user_id: string
+        }
+        Insert: {
+          average_response_time_ms?: number | null
+          date?: string
+          device_id: string
+          error_count_today?: number | null
+          error_rate_percent?: number | null
+          health_issues?: Json | null
+          health_status?: string | null
+          id?: string
+          last_error_at?: string | null
+          last_error_message?: string | null
+          last_heartbeat?: string | null
+          messages_delivered_today?: number | null
+          messages_failed_today?: number | null
+          messages_sent_today?: number | null
+          reconnect_count_today?: number | null
+          updated_at?: string | null
+          uptime_minutes?: number | null
+          user_id: string
+        }
+        Update: {
+          average_response_time_ms?: number | null
+          date?: string
+          device_id?: string
+          error_count_today?: number | null
+          error_rate_percent?: number | null
+          health_issues?: Json | null
+          health_status?: string | null
+          id?: string
+          last_error_at?: string | null
+          last_error_message?: string | null
+          last_heartbeat?: string | null
+          messages_delivered_today?: number | null
+          messages_failed_today?: number | null
+          messages_sent_today?: number | null
+          reconnect_count_today?: number | null
+          updated_at?: string | null
+          uptime_minutes?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_health_metrics_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_reconnect_settings: {
+        Row: {
+          created_at: string | null
+          current_retry_count: number | null
+          device_id: string
+          enabled: boolean | null
+          exponential_backoff: boolean | null
+          last_retry_at: string | null
+          max_retries: number | null
+          next_retry_at: string | null
+          notify_on_failure: boolean | null
+          retry_interval_seconds: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_retry_count?: number | null
+          device_id: string
+          enabled?: boolean | null
+          exponential_backoff?: boolean | null
+          last_retry_at?: string | null
+          max_retries?: number | null
+          next_retry_at?: string | null
+          notify_on_failure?: boolean | null
+          retry_interval_seconds?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_retry_count?: number | null
+          device_id?: string
+          enabled?: boolean | null
+          exponential_backoff?: boolean | null
+          last_retry_at?: string | null
+          max_retries?: number | null
+          next_retry_at?: string | null
+          notify_on_failure?: boolean | null
+          retry_interval_seconds?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_reconnect_settings_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: true
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devices: {
         Row: {
           api_key: string | null
@@ -807,6 +1023,42 @@ export type Database = {
           section_key?: string
           subtitle?: string | null
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      login_rate_limits: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          first_attempt_at: string
+          id: string
+          identifier: string
+          is_locked: boolean | null
+          last_attempt_at: string
+          locked_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          first_attempt_at?: string
+          id?: string
+          identifier: string
+          is_locked?: boolean | null
+          last_attempt_at?: string
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          first_attempt_at?: string
+          id?: string
+          identifier?: string
+          is_locked?: boolean | null
+          last_attempt_at?: string
+          locked_until?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1864,6 +2116,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_device_uptime: {
+        Args: { p_device_id: string }
+        Returns: number
+      }
       calculate_next_send_time_v2: {
         Args: {
           p_frequency: string
@@ -1875,9 +2131,23 @@ export type Database = {
         Returns: string
       }
       check_server_health: { Args: { p_server_id: string }; Returns: Json }
+      cleanup_old_device_logs: { Args: never; Returns: number }
+      cleanup_old_health_metrics: { Args: never; Returns: number }
+      cleanup_old_rate_limits: { Args: never; Returns: number }
       generate_api_key: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       get_best_available_server: { Args: never; Returns: string }
+      get_device_health_summary: {
+        Args: { p_device_id: string }
+        Returns: {
+          error_rate_percent: number
+          health_status: string
+          last_error_message: string
+          messages_sent_today: number
+          reconnect_count_today: number
+          uptime_minutes: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1903,8 +2173,31 @@ export type Database = {
         }
         Returns: string
       }
+      log_device_connection_event: {
+        Args: {
+          p_details?: Json
+          p_device_id: string
+          p_error_code?: string
+          p_error_message?: string
+          p_event_type: string
+          p_ip_address?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       mark_conversation_as_read: {
         Args: { p_conversation_id: string }
+        Returns: undefined
+      }
+      update_device_health: {
+        Args: {
+          p_device_id: string
+          p_error_message?: string
+          p_error_occurred?: boolean
+          p_messages_failed?: number
+          p_messages_sent?: number
+          p_user_id: string
+        }
         Returns: undefined
       }
     }
