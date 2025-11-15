@@ -2116,6 +2116,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_cleanup_stuck_devices: { Args: never; Returns: number }
       calculate_device_uptime: {
         Args: { p_device_id: string }
         Returns: number
@@ -2134,6 +2135,7 @@ export type Database = {
       cleanup_old_device_logs: { Args: never; Returns: number }
       cleanup_old_health_metrics: { Args: never; Returns: number }
       cleanup_old_rate_limits: { Args: never; Returns: number }
+      delete_device_completely: { Args: { p_device_id: string }; Returns: Json }
       generate_api_key: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       get_best_available_server: { Args: never; Returns: string }

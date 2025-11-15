@@ -189,6 +189,43 @@ export const AdminDevices = () => {
     };
   }, [userId, notificationsEnabled, shouldShowNotification, selectedDevice?.id, connectionStatus, pollingInterval]);
 
+  // ✅ SECURITY: Auto-cleanup stuck devices every 2 minutes
+  useEffect(() => {
+    if (!userId) return;
+
+    const runAutoCleanup = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const { data } = await supabase.functions.invoke('device-cleanup', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        // Log cleanup in dev mode
+        if (import.meta.env.DEV && data?.cleaned_devices > 0) {
+          console.log('🧹 Auto-cleanup:', data);
+        }
+      } catch (error) {
+        // Silently fail - this is background cleanup
+        if (import.meta.env.DEV) {
+          console.log('Auto-cleanup check:', error);
+        }
+      }
+    };
+
+    // Run immediately on mount
+    runAutoCleanup();
+
+    // Then run every 2 minutes
+    const cleanupInterval = setInterval(runAutoCleanup, 2 * 60 * 1000);
+
+    return () => clearInterval(cleanupInterval);
+  }, [userId]);
+
   // QR expiry countdown
   useEffect(() => {
     if (qrExpiry > 0 && qrDialogOpen) {
@@ -482,26 +519,6 @@ export const AdminDevices = () => {
     }
   };
 
-  const handleReconnect = async (device: Device) => {
-    try {
-      // Just restart connection - keep session data for recovery
-      toast.info("Mencoba koneksi ulang...");
-
-      await supabase
-        .from("devices")
-        .update({
-          status: "connecting"
-        })
-        .eq("id", device.id);
-
-      // Railway service will detect status change and attempt recovery
-      // No need to call fetchDevices() - realtime will handle it
-      toast.success("Permintaan reconnect dikirim");
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
   const handleLogout = async (device: Device) => {
     if (!confirm("Logout dari WhatsApp? Session akan dihapus dan device terputus.")) return;
 
@@ -710,7 +727,6 @@ export const AdminDevices = () => {
                   onConnect={handleConnectDevice}
                   onDetail={handleDetail}
                   onClearSession={handleClearSession}
-                  onRelog={handleReconnect}
                   onLogout={handleLogout}
                   onDelete={handleDeleteDevice}
                   onCopyApiKey={copyToClipboard}
@@ -831,15 +847,6 @@ export const AdminDevices = () => {
                                   title="Clear Session - Hapus data autentikasi"
                                 >
                                   <Database className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleReconnect(device)}
-                                  className="border-blue-500 text-blue-500 hover:bg-blue-50 h-8 w-8 p-0"
-                                  title="Reconnect - Coba koneksi ulang"
-                                >
-                                  <RefreshCw className="w-3 h-3" />
                                 </Button>
                                 <Button
                                   size="sm"
@@ -1353,17 +1360,6 @@ export const AdminDevices = () => {
                         >
                           <Database className="w-4 h-4 mr-2" />
                           Clear Session
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setDetailDialogOpen(false);
-                            handleReconnect(selectedDevice);
-                          }}
-                          variant="outline"
-                          className="border-blue-500 text-blue-500 hover:bg-blue-50"
-                        >
-                          <RefreshCw className="w-4 h-4 mr-2" />
-                          Reconnect
                         </Button>
                         <Button
                           onClick={() => {

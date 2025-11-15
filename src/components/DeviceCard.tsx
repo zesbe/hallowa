@@ -20,7 +20,6 @@ interface DeviceCardProps {
   onConnect: (device: Device) => void;
   onDetail: (device: Device) => void;
   onClearSession: (device: Device) => void;
-  onRelog: (device: Device) => void; // Keep name for compatibility
   onLogout: (device: Device) => void;
   onDelete: (id: string) => void;
   onCopyApiKey: (apiKey: string) => void;
@@ -34,7 +33,6 @@ export const DeviceCard = memo(function DeviceCard({
   onConnect,
   onDetail,
   onClearSession,
-  onRelog: onReconnect, // Rename for clarity
   onLogout,
   onDelete,
   onCopyApiKey,
@@ -106,15 +104,6 @@ export const DeviceCard = memo(function DeviceCard({
                 >
                   <Database className="w-3 h-3 mr-1" />
                   Clear
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onReconnect(device)}
-                  className="text-xs border-blue-500 text-blue-500"
-                >
-                  <RotateCcw className="w-3 h-3 mr-1" />
-                  Reconnect
                 </Button>
                 <Button
                   size="sm"

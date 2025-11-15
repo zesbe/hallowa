@@ -105,26 +105,34 @@ export class DeviceService {
   }
 
   /**
-   * Delete device
+   * Delete device - Comprehensive cleanup
+   * Removes device and all associated data from database, storage, and Redis
    */
   static async delete(deviceId: string): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new DeviceServiceError('User not authenticated');
 
-    // First set status to disconnected to trigger cleanup
-    await this.update(deviceId, { status: 'disconnected' });
+    // Get auth token for edge function call
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new DeviceServiceError('No active session');
 
-    // Wait a bit for backend to process disconnection
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Call edge function for comprehensive cleanup
+    const { data, error } = await supabase.functions.invoke('device-cleanup', {
+      body: { device_id: deviceId },
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
 
-    // Then delete
-    const { error } = await supabase
-      .from('devices')
-      .delete()
-      .eq('id', deviceId)
-      .eq('user_id', user.id);  // ✅ SECURITY: Verify ownership
+    if (error) {
+      console.error('Device cleanup error:', error);
+      throw new DeviceServiceError('Failed to delete device completely');
+    }
 
-    if (error) throw new DeviceServiceError(error.message, error.code);
+    if (data && !data.success) {
+      throw new DeviceServiceError(data.error || 'Delete failed');
+    }
   }
 
   /**
