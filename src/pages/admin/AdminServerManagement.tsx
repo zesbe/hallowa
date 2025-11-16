@@ -66,8 +66,10 @@ export const AdminServerManagement = () => {
     region: "",
     max_capacity: 50,
     priority: 5,
-    api_key: ""
+    api_key: "",
+    allowed_ips: [] as string[]
   });
+  const [ipInput, setIpInput] = useState("");
 
   useEffect(() => {
     loadServers();
@@ -172,85 +174,87 @@ export const AdminServerManagement = () => {
 
   const performHealthCheck = async (server: BackendServer) => {
     try {
-      // Validate URL before making health check request (SSRF protection)
-      if (!server.server_url || !isValidURL(server.server_url)) {
-        toast.error(`URL server tidak valid: ${server.server_name}`);
-        
-        await supabase
-          .from("backend_servers")
-          .update({
-            is_healthy: false,
-            last_health_check: new Date().toISOString(),
-            health_check_failures: server.health_check_failures + 1,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", server.id);
-        
-        await supabase.from("server_logs").insert([{
-          server_id: server.id,
-          log_type: "error",
-          message: "Health check failed: Invalid or dangerous URL",
-          details: { url: server.server_url }
-        }]);
-        
-        loadServers();
+      // 🔒 SECURITY: Use new edge function with rate limiting
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Session expired");
         return;
       }
 
-      const startTime = Date.now();
-      
-      // Use sanitized URL for fetch
-      const sanitizedUrl = sanitizeURL(server.server_url);
-      if (!sanitizedUrl) {
-        throw new Error("URL mengandung protokol berbahaya");
-      }
-
-      const response = await fetch(`${sanitizedUrl}/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        signal: AbortSignal.timeout(5000)
+      const { data, error } = await supabase.functions.invoke('server-health-check', {
+        body: { server_id: server.id }
       });
 
-      const responseTime = Date.now() - startTime;
-      const isHealthy = response.ok;
-
-      await supabase
-        .from("backend_servers")
-        .update({
-          is_healthy: isHealthy,
-          response_time: responseTime,
-          last_health_check: new Date().toISOString(),
-          health_check_failures: isHealthy ? 0 : server.health_check_failures + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", server.id);
-
-      await supabase.from("server_logs").insert([{
-        server_id: server.id,
-        log_type: isHealthy ? "info" : "error",
-        message: isHealthy ? "Health check passed" : "Health check failed",
-        details: {
-          response_time: responseTime,
-          status_code: response.status
+      if (error) {
+        console.error('Health check error:', error);
+        
+        // Check for rate limit error
+        if (error.message?.includes('Rate limit') || error.message?.includes('429')) {
+          toast.error("⚠️ Terlalu banyak health check. Tunggu sebentar.");
+        } else {
+          toast.error("Health check gagal: " + error.message);
         }
-      }]);
+        return;
+      }
 
-      toast.success(isHealthy ? `Server sehat ✓ (${responseTime}ms)` : "Server bermasalah ✗");
+      if (data?.success) {
+        const msg = data.is_healthy 
+          ? `Server sehat ✓ (${data.response_time_ms}ms)` 
+          : `Server bermasalah ✗`;
+        toast.success(msg);
+      }
+
       loadServers();
     } catch (error: any) {
-      await supabase
-        .from("backend_servers")
-        .update({
-          is_healthy: false,
-          last_health_check: new Date().toISOString(),
-          health_check_failures: server.health_check_failures + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", server.id);
+      console.error("Health check error:", error);
+      toast.error(error.message || "Terjadi kesalahan");
+    }
+  };
 
-      loadServers();
+  const handleRotateApiKey = async (server: BackendServer) => {
+    try {
+      const confirm = window.confirm(
+        `⚠️ Rotate API key untuk server "${server.server_name}"?\n\nAPI key lama akan tidak valid lagi!`
+      );
+
+      if (!confirm) return;
+
+      toast.loading("Rotating API key...");
+
+      const { data, error } = await supabase.functions.invoke('rotate-server-api-key', {
+        body: { server_id: server.id }
+      });
+
+      toast.dismiss();
+
+      if (error) {
+        console.error('API key rotation error:', error);
+        
+        // Check for rate limit error  
+        if (error.message?.includes('Rate limit') || error.message?.includes('429')) {
+          toast.error("⚠️ Terlalu banyak rotation request. Tunggu sebentar.");
+        } else {
+          toast.error("Rotation gagal: " + error.message);
+        }
+        return;
+      }
+
+      if (data?.success) {
+        // Show new API key to admin
+        const newKey = data.new_api_key;
+        const copyText = `New API Key: ${newKey}\n\nSimpan API key ini! Tidak akan ditampilkan lagi.`;
+        
+        await navigator.clipboard.writeText(newKey);
+        
+        alert(copyText + "\n\n✓ API key sudah di-copy ke clipboard!");
+        toast.success("✓ API key rotated & copied to clipboard");
+        
+        loadServers();
+      }
+    } catch (error: any) {
+      toast.dismiss();
+      console.error("API key rotation error:", error);
+      toast.error(error.message || "Terjadi kesalahan");
     }
   };
 
@@ -262,8 +266,10 @@ export const AdminServerManagement = () => {
       region: "",
       max_capacity: 50,
       priority: 5,
-      api_key: ""
+      api_key: "",
+      allowed_ips: []
     });
+    setIpInput("");
     setEditingServer(null);
   };
 
@@ -276,7 +282,8 @@ export const AdminServerManagement = () => {
       region: server.region || "",
       max_capacity: server.max_capacity,
       priority: server.priority,
-      api_key: server.api_key || ""
+      api_key: server.api_key || "",
+      allowed_ips: (server as any).allowed_ips || []
     });
     setDialogOpen(true);
   };
@@ -492,6 +499,73 @@ export const AdminServerManagement = () => {
                         value={formData.api_key}
                         onChange={(e) => setFormData({...formData, api_key: e.target.value})}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        🔒 API Key akan dienkripsi otomatis saat disimpan
+                      </p>
+                    </div>
+                    
+                    {/* IP Whitelist */}
+                    <div className="space-y-2">
+                      <Label>IP Whitelist (Optional)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Contoh: 192.168.1.1"
+                          value={ipInput}
+                          onChange={(e) => setIpInput(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (ipInput.trim()) {
+                                setFormData({
+                                  ...formData,
+                                  allowed_ips: [...formData.allowed_ips, ipInput.trim()]
+                                });
+                                setIpInput("");
+                              }
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (ipInput.trim()) {
+                              setFormData({
+                                ...formData,
+                                allowed_ips: [...formData.allowed_ips, ipInput.trim()]
+                              });
+                              setIpInput("");
+                            }
+                          }}
+                        >
+                          Tambah
+                        </Button>
+                      </div>
+                      {formData.allowed_ips.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {formData.allowed_ips.map((ip, index) => (
+                            <Badge key={index} variant="secondary" className="gap-1">
+                              {ip}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData({
+                                    ...formData,
+                                    allowed_ips: formData.allowed_ips.filter((_, i) => i !== index)
+                                  });
+                                }}
+                                className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full"
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Kosongkan untuk allow all IPs. Tekan Enter atau klik Tambah untuk menambah IP.
+                      </p>
                     </div>
                   </div>
                   <DialogFooter>
@@ -628,13 +702,23 @@ export const AdminServerManagement = () => {
 
                 {/* Last Check */}
                 {server.last_health_check && (
-                  <div className="text-xs text-muted-foreground">
-                    Last checked: {new Date(server.last_health_check).toLocaleString('id-ID')}
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>Last checked: {new Date(server.last_health_check).toLocaleString('id-ID')}</div>
+                    {(server as any).api_key_encrypted && (
+                      <div className="flex items-center gap-1 text-green-600">
+                        🔒 API Key Encrypted
+                      </div>
+                    )}
+                    {(server as any).api_key_last_rotated && (
+                      <div>
+                        Last rotated: {new Date((server as any).api_key_last_rotated).toLocaleString('id-ID')}
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-wrap gap-2 pt-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -644,6 +728,19 @@ export const AdminServerManagement = () => {
                     <Activity className="w-4 h-4 mr-1" />
                     Health Check
                   </Button>
+                  
+                  {server.api_key && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRotateApiKey(server)}
+                      className="text-orange-600 hover:text-orange-700"
+                      title="Rotate API Key"
+                    >
+                      🔄 Rotate Key
+                    </Button>
+                  )}
+                  
                   <Button
                     size="sm"
                     variant="outline"
