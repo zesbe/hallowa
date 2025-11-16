@@ -2248,10 +2248,6 @@ export type Database = {
         Args: { p_conversation_id: string }
         Returns: undefined
       }
-      rotate_server_api_key: {
-        Args: { p_encryption_key: string; p_server_id: string }
-        Returns: Json
-      }
       update_device_health: {
         Args: {
           p_device_id: string

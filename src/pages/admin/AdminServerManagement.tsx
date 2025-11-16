@@ -211,53 +211,6 @@ export const AdminServerManagement = () => {
     }
   };
 
-  const handleRotateApiKey = async (server: BackendServer) => {
-    try {
-      const confirm = window.confirm(
-        `⚠️ Rotate API key untuk server "${server.server_name}"?\n\nAPI key lama akan tidak valid lagi!`
-      );
-
-      if (!confirm) return;
-
-      toast.loading("Rotating API key...");
-
-      const { data, error } = await supabase.functions.invoke('rotate-server-api-key', {
-        body: { server_id: server.id }
-      });
-
-      toast.dismiss();
-
-      if (error) {
-        console.error('API key rotation error:', error);
-        
-        // Check for rate limit error  
-        if (error.message?.includes('Rate limit') || error.message?.includes('429')) {
-          toast.error("⚠️ Terlalu banyak rotation request. Tunggu sebentar.");
-        } else {
-          toast.error("Rotation gagal: " + error.message);
-        }
-        return;
-      }
-
-      if (data?.success) {
-        // Show new API key to admin
-        const newKey = data.new_api_key;
-        const copyText = `New API Key: ${newKey}\n\nSimpan API key ini! Tidak akan ditampilkan lagi.`;
-        
-        await navigator.clipboard.writeText(newKey);
-        
-        alert(copyText + "\n\n✓ API key sudah di-copy ke clipboard!");
-        toast.success("✓ API key rotated & copied to clipboard");
-        
-        loadServers();
-      }
-    } catch (error: any) {
-      toast.dismiss();
-      console.error("API key rotation error:", error);
-      toast.error(error.message || "Terjadi kesalahan");
-    }
-  };
-
   const resetForm = () => {
     setFormData({
       server_name: "",
@@ -709,11 +662,6 @@ export const AdminServerManagement = () => {
                         🔒 API Key Encrypted
                       </div>
                     )}
-                    {(server as any).api_key_last_rotated && (
-                      <div>
-                        Last rotated: {new Date((server as any).api_key_last_rotated).toLocaleString('id-ID')}
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -728,18 +676,6 @@ export const AdminServerManagement = () => {
                     <Activity className="w-4 h-4 mr-1" />
                     Health Check
                   </Button>
-                  
-                  {server.api_key && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleRotateApiKey(server)}
-                      className="text-orange-600 hover:text-orange-700"
-                      title="Rotate API Key"
-                    >
-                      🔄 Rotate Key
-                    </Button>
-                  )}
                   
                   <Button
                     size="sm"
