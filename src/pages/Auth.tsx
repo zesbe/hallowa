@@ -126,7 +126,7 @@ export const Auth = () => {
           .maybeSingle();
         
         if (roleData?.role === "admin") {
-          // 🔒 SECURITY: Log admin rejection
+          // 🔒 SECURITY: Log admin rejection (internal monitoring only)
           await supabase.from('auth_audit_logs' as any).insert({
             user_id: data.user.id,
             email,
@@ -137,14 +137,9 @@ export const Auth = () => {
             user_agent: navigator.userAgent
           });
 
+          // 🔒 SECURITY: Sign out and show generic error to prevent information disclosure
           await supabase.auth.signOut();
-          toast.error("⚠️ Admin harus login melalui halaman admin", {
-            duration: 5000,
-            action: {
-              label: "Ke Halaman Admin",
-              onClick: () => navigate("/admin/login"),
-            },
-          });
+          toast.error("Email atau password salah");
           return;
         }
 

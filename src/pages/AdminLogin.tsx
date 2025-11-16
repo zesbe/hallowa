@@ -75,7 +75,7 @@ export const AdminLogin = () => {
           .maybeSingle();
 
         if (roleData?.role !== "admin") {
-          // 🔒 SECURITY: Log non-admin attempt to access admin page
+          // 🔒 SECURITY: Log non-admin attempt to access admin page (internal monitoring only)
           await supabase.from('auth_audit_logs' as any).insert({
             user_id: data.user.id,
             email,
@@ -86,8 +86,9 @@ export const AdminLogin = () => {
             user_agent: navigator.userAgent
           });
 
+          // 🔒 SECURITY: Sign out and show generic error to prevent information disclosure
           await supabase.auth.signOut();
-          toast.error("Akses ditolak. Anda bukan admin.");
+          toast.error("Email atau password salah");
           return;
         }
 
