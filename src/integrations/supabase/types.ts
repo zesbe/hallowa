@@ -46,9 +46,9 @@ export type Database = {
       }
       api_keys: {
         Row: {
-          api_key: string
-          api_key_hash: string | null
-          api_key_prefix: string | null
+          api_key: string | null
+          api_key_hash: string
+          api_key_prefix: string
           created_at: string
           id: string
           is_active: boolean | null
@@ -57,9 +57,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          api_key: string
-          api_key_hash?: string | null
-          api_key_prefix?: string | null
+          api_key?: string | null
+          api_key_hash: string
+          api_key_prefix: string
           created_at?: string
           id?: string
           is_active?: boolean | null
@@ -68,9 +68,9 @@ export type Database = {
           user_id: string
         }
         Update: {
-          api_key?: string
-          api_key_hash?: string | null
-          api_key_prefix?: string | null
+          api_key?: string | null
+          api_key_hash?: string
+          api_key_prefix?: string
           created_at?: string
           id?: string
           is_active?: boolean | null
