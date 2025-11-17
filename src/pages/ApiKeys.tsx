@@ -71,13 +71,12 @@ export const ApiKeys = () => {
       const keyPrefix = getApiKeyPrefix(plaintextKey);
 
       const { error } = await supabase.from("api_keys").insert({
-        user_id: user.id, // Required untuk RLS policy
+        user_id: user.id,
         key_name: formData.key_name,
-        api_key: '', // Legacy field, will be removed
         api_key_hash: hashedKey,
         api_key_prefix: keyPrefix,
         is_active: true,
-      } as any);
+      });
 
       if (error) throw error;
 
