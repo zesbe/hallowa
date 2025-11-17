@@ -24,9 +24,11 @@ export interface RecurringMessage {
   total_sent: number;
   total_failed: number;
   max_executions?: number;
+  delay_type: 'auto' | 'manual' | 'adaptive';
   delay_seconds: number;
   randomize_delay: boolean;
   batch_size: number;
+  pause_between_batches: number;
   created_at: string;
   updated_at: string;
 }

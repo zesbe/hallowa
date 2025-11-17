@@ -470,30 +470,127 @@ export default function RecurringMessages() {
                 </div>
 
                 {/* Safety Settings */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Timer className="w-4 h-4" />
-                    Pengaturan Keamanan
-                  </h3>
+                <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">⚡ Pengaturan Keamanan</Label>
+                    <Badge variant="outline" className="text-xs">Anti-Banned</Badge>
+                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Delay (detik)</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="delay-type">Mode Pengiriman</Label>
+                    <Select
+                      value={formData.delay_type}
+                      onValueChange={(value: any) => setFormData({ ...formData, delay_type: value })}
+                    >
+                      <SelectTrigger id="delay-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-green-500" />
+                            <div>
+                              <div className="font-semibold">Auto (Direkomendasikan)</div>
+                              <div className="text-xs text-muted-foreground">
+                                Delay otomatis disesuaikan dengan jumlah kontak
+                              </div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="adaptive">
+                          <div className="flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 text-blue-500" />
+                            <div>
+                              <div className="font-semibold">Adaptive</div>
+                              <div className="text-xs text-muted-foreground">
+                                Menyesuaikan dengan kecepatan pengiriman
+                              </div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="manual">
+                          <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-orange-500" />
+                            <div>
+                              <div className="font-semibold">Manual</div>
+                              <div className="text-xs text-muted-foreground">
+                                Atur delay sendiri (hati-hati)
+                              </div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.delay_type === 'manual' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="delay">Delay Antar Pesan</Label>
+                        <Badge variant="secondary">{formData.delay_seconds}s</Badge>
+                      </div>
                       <Input
+                        id="delay"
                         type="number"
                         min="1"
                         value={formData.delay_seconds}
-                        onChange={(e) => setFormData({ ...formData, delay_seconds: parseInt(e.target.value) })}
+                        onChange={(e) => setFormData({ ...formData, delay_seconds: Math.max(1, parseInt(e.target.value) || 1) })}
+                        placeholder="Detik"
                       />
+                      <p className="text-xs text-muted-foreground">
+                        ⚠️ Delay terlalu pendek dapat menyebabkan banned. Minimal 3 detik direkomendasikan.
+                      </p>
                     </div>
+                  )}
 
-                    <div className="flex items-center justify-between">
-                      <Label>Randomize Delay</Label>
-                      <Switch
-                        checked={formData.randomize_delay}
-                        onCheckedChange={(checked) => setFormData({ ...formData, randomize_delay: checked })}
-                      />
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <Label htmlFor="randomize">Randomize Delay</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Variasi acak ±20% untuk keamanan
+                      </p>
                     </div>
+                    <Switch
+                      id="randomize"
+                      checked={formData.randomize_delay}
+                      onCheckedChange={(checked) => setFormData({ ...formData, randomize_delay: checked })}
+                    />
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="batch-size">Ukuran Batch</Label>
+                      <Badge variant="secondary">{formData.batch_size} pesan</Badge>
+                    </div>
+                    <Slider
+                      id="batch-size"
+                      min={5}
+                      max={100}
+                      step={5}
+                      value={[formData.batch_size]}
+                      onValueChange={(value) => setFormData({ ...formData, batch_size: value[0] })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Jumlah pesan sebelum jeda batch
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="pause">Jeda Antar Batch</Label>
+                      <Badge variant="secondary">{formData.pause_between_batches}s</Badge>
+                    </div>
+                    <Slider
+                      id="pause"
+                      min={30}
+                      max={300}
+                      step={10}
+                      value={[formData.pause_between_batches]}
+                      onValueChange={(value) => setFormData({ ...formData, pause_between_batches: value[0] })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Waktu jeda setelah mengirim 1 batch
+                    </p>
                   </div>
                 </div>
 

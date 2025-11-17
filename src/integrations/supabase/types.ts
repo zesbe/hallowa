@@ -1532,6 +1532,7 @@ export type Database = {
           day_of_month: number | null
           days_of_week: number[] | null
           delay_seconds: number | null
+          delay_type: string | null
           device_id: string
           end_date: string | null
           frequency: string
@@ -1544,6 +1545,7 @@ export type Database = {
           message: string
           name: string
           next_send_at: string | null
+          pause_between_batches: number | null
           randomize_delay: boolean | null
           start_date: string
           target_contacts: Json
@@ -1560,6 +1562,7 @@ export type Database = {
           day_of_month?: number | null
           days_of_week?: number[] | null
           delay_seconds?: number | null
+          delay_type?: string | null
           device_id: string
           end_date?: string | null
           frequency: string
@@ -1572,6 +1575,7 @@ export type Database = {
           message: string
           name: string
           next_send_at?: string | null
+          pause_between_batches?: number | null
           randomize_delay?: boolean | null
           start_date: string
           target_contacts?: Json
@@ -1588,6 +1592,7 @@ export type Database = {
           day_of_month?: number | null
           days_of_week?: number[] | null
           delay_seconds?: number | null
+          delay_type?: string | null
           device_id?: string
           end_date?: string | null
           frequency?: string
@@ -1600,6 +1605,7 @@ export type Database = {
           message?: string
           name?: string
           next_send_at?: string | null
+          pause_between_batches?: number | null
           randomize_delay?: boolean | null
           start_date?: string
           target_contacts?: Json
