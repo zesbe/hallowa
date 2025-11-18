@@ -36,8 +36,8 @@ export default defineConfig(({ mode }) => ({
         drop_debugger: mode === 'production'
       }
     },
-    // Enable source map untuk development, disable untuk production
-    sourcemap: mode === 'development'
+    // Enable source map for better debugging and SEO audit
+    sourcemap: true
   },
   
   plugins: [
