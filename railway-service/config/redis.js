@@ -1,17 +1,18 @@
 /**
  * Redis ioredis Connection for BullMQ
  * Uses TCP native protocol for high-performance queue operations
+ * Supports local Redis on Railway/VPS/Dokploy
  */
 
 const Redis = require('ioredis');
 
-// Parse Upstash Redis URL
-const REDIS_URL = process.env.UPSTASH_REDIS_URL;
+// Parse Local Redis URL
+const REDIS_URL = process.env.REDIS_URL;
 
 if (!REDIS_URL) {
-  console.warn('⚠️  UPSTASH_REDIS_URL not configured - BullMQ features will be disabled');
-  console.warn('⚠️  Please add UPSTASH_REDIS_URL to your environment variables');
-  console.warn('⚠️  Get it from Upstash Dashboard > Your Redis > Details > Redis URL (TCP)');
+  console.warn('⚠️  REDIS_URL not configured - BullMQ features will be disabled');
+  console.warn('⚠️  Please add REDIS_URL to your environment variables');
+  console.warn('⚠️  Example: redis://default:password@localhost:6379');
 }
 
 /**
@@ -42,19 +43,15 @@ function createIORedisConnection() {
         }
         return false;
       },
-      // TLS configuration for Upstash
-      tls: REDIS_URL.startsWith('rediss://') ? {
-        rejectUnauthorized: true,
-      } : undefined,
     });
 
     // Event listeners
     connection.on('connect', () => {
-      console.log('✅ ioredis connected to Upstash (TCP native protocol)');
+      console.log('✅ ioredis connected to local Redis (TCP native protocol)');
     });
 
     connection.on('ready', () => {
-      console.log('✅ ioredis ready for operations');
+      console.log('✅ ioredis ready for BullMQ queue operations');
     });
 
     connection.on('error', (err) => {
