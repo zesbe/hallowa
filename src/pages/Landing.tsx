@@ -672,6 +672,8 @@ const Landing = () => {
         </div>
       </header>
 
+      {/* Main Content */}
+      <main>
       {/* Social Proof */}
       <section className="bg-gray-50 dark:bg-gray-800/50 py-12 border-y border-gray-200 dark:border-gray-700">
         <div className="container mx-auto px-4">
@@ -1222,6 +1224,7 @@ const Landing = () => {
           </p>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12 sm:py-16" data-aos="fade-up">
