@@ -1,114 +1,158 @@
 /**
- * Redis Upstash Client for WhatsApp Session Management
- * Handles session data, QR codes, and pairing codes
+ * Redis Client for WhatsApp Session Management (Local Redis)
+ * Handles session data, QR codes, pairing codes, rate limiting, and cache
+ * Uses ioredis (TCP native) for local Redis on Railway/VPS/Dokploy
  */
 
-const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const Redis = require('ioredis');
+
+const REDIS_URL = process.env.REDIS_URL;
 
 class RedisClient {
   constructor() {
-    if (!REDIS_URL || !REDIS_TOKEN) {
-      console.warn('⚠️ Redis credentials not configured - Redis features will be disabled');
+    if (!REDIS_URL) {
+      console.warn('⚠️  REDIS_URL not configured - Redis features will be disabled');
+      console.warn('⚠️  Please add REDIS_URL to your environment variables');
+      console.warn('⚠️  Example: redis://default:password@localhost:6379');
       this.enabled = false;
+      this.client = null;
       return;
     }
-    this.enabled = true;
-    this.baseUrl = REDIS_URL;
-    this.token = REDIS_TOKEN;
+
+    try {
+      this.client = new Redis(REDIS_URL, {
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+        retryStrategy: (times) => {
+          const delay = Math.min(times * 100, 3000);
+          console.log(`🔄 Retrying Redis connection in ${delay}ms...`);
+          return delay;
+        },
+        reconnectOnError: (err) => {
+          console.error('❌ Redis error:', err.message);
+          const targetError = 'READONLY';
+          if (err.message.includes(targetError)) {
+            return true;
+          }
+          return false;
+        },
+      });
+
+      this.client.on('connect', () => {
+        console.log('✅ Redis connected (local TCP)');
+      });
+
+      this.client.on('ready', () => {
+        console.log('✅ Redis ready for operations');
+      });
+
+      this.client.on('error', (err) => {
+        console.error('❌ Redis connection error:', err.message.replace(/redis[s]?:\/\/[^@]*@/, 'redis://***:***@'));
+      });
+
+      this.client.on('close', () => {
+        console.log('⚠️  Redis connection closed');
+      });
+
+      this.client.on('reconnecting', () => {
+        console.log('🔄 Redis reconnecting...');
+      });
+
+      this.enabled = true;
+    } catch (error) {
+      console.error('❌ Failed to create Redis connection:', error);
+      this.enabled = false;
+      this.client = null;
+    }
   }
 
-  async execute(command) {
-    if (!this.enabled) {
-      return null;
-    }
-
-    const response = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(command),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Redis error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.result;
-  }
-
-  // QR Code Management (Keep - temporary data)
+  // QR Code Management
   async setQRCode(deviceId, qrCode, ttl = 600) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return false;
     }
     try {
-      // TTL 10 minutes for QR codes (extended for better stability)
       const key = `qr:${deviceId}`;
-      const result = await this.execute(['SET', key, qrCode, 'EX', ttl]);
-      console.log(`Redis SET result for qr:${deviceId}:`, result);
+      const result = await this.client.set(key, qrCode, 'EX', ttl);
+      console.log(`✅ Redis SET qr:${deviceId} (TTL: ${ttl}s)`);
       return result === 'OK';
     } catch (error) {
-      console.error('Redis setQRCode error:', error);
+      console.error('❌ Redis setQRCode error:', error);
       return false;
     }
   }
 
   async getQRCode(deviceId) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return null;
     }
-    const key = `qr:${deviceId}`;
-    return await this.execute(['GET', key]);
+    try {
+      const key = `qr:${deviceId}`;
+      return await this.client.get(key);
+    } catch (error) {
+      console.error('❌ Redis getQRCode error:', error);
+      return null;
+    }
   }
 
   async deleteQRCode(deviceId) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return;
     }
-    const key = `qr:${deviceId}`;
-    await this.execute(['DEL', key]);
+    try {
+      const key = `qr:${deviceId}`;
+      await this.client.del(key);
+      console.log(`🗑️  Deleted QR code for device: ${deviceId}`);
+    } catch (error) {
+      console.error('❌ Redis deleteQRCode error:', error);
+    }
   }
 
-  // Pairing Code Management (Keep - temporary data)
+  // Pairing Code Management
   async setPairingCode(deviceId, pairingCode, ttl = 600) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return false;
     }
     try {
-      // TTL 10 minutes for pairing codes (extended for better stability)
       const key = `pairing:${deviceId}`;
-      const result = await this.execute(['SET', key, pairingCode, 'EX', ttl]);
-      console.log(`Redis SET result for pairing:${deviceId}:`, result);
+      const result = await this.client.set(key, pairingCode, 'EX', ttl);
+      console.log(`✅ Redis SET pairing:${deviceId} (TTL: ${ttl}s)`);
       return result === 'OK';
     } catch (error) {
-      console.error('Redis setPairingCode error:', error);
+      console.error('❌ Redis setPairingCode error:', error);
       return false;
     }
   }
 
   async getPairingCode(deviceId) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return null;
     }
-    const key = `pairing:${deviceId}`;
-    return await this.execute(['GET', key]);
+    try {
+      const key = `pairing:${deviceId}`;
+      return await this.client.get(key);
+    } catch (error) {
+      console.error('❌ Redis getPairingCode error:', error);
+      return null;
+    }
   }
 
   async deletePairingCode(deviceId) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return;
     }
-    const key = `pairing:${deviceId}`;
-    await this.execute(['DEL', key]);
+    try {
+      const key = `pairing:${deviceId}`;
+      await this.client.del(key);
+      console.log(`🗑️  Deleted pairing code for device: ${deviceId}`);
+    } catch (error) {
+      console.error('❌ Redis deletePairingCode error:', error);
+    }
   }
 
-  // Cleanup all device data (only temporary codes)
+  // Cleanup all device data
   async cleanupDevice(deviceId) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return;
     }
     await Promise.all([
@@ -126,137 +170,126 @@ class RedisClient {
    * @returns {Promise<boolean>} True if request is allowed
    */
   async checkRateLimit(identifier, maxRequests = 100, windowSeconds = 60) {
-    if (!this.enabled) {
-      // Fallback to no rate limiting if Redis disabled
-      console.warn('Redis disabled - rate limiting skipped');
+    if (!this.enabled || !this.client) {
+      console.warn('⚠️  Redis disabled - rate limiting skipped');
       return true;
     }
 
     try {
       const key = `ratelimit:${identifier}`;
-
-      // Use Redis INCR + EXPIRE pattern for atomic rate limiting
-      const count = await this.execute(['INCR', key]);
-
-      if (count === 1) {
-        // First request in window - set expiration
-        await this.execute(['EXPIRE', key, windowSeconds]);
-      }
-
+      
+      // Use MULTI/EXEC for atomic operations
+      const pipeline = this.client.pipeline();
+      pipeline.incr(key);
+      pipeline.expire(key, windowSeconds);
+      pipeline.ttl(key);
+      
+      const results = await pipeline.exec();
+      const count = results[0][1]; // First command result (INCR)
+      
       if (count > maxRequests) {
-        console.log(`⚠️  Rate limit exceeded for ${identifier}: ${count}/${maxRequests}`);
-        return false; // Rate limit exceeded
+        const ttl = results[2][1]; // TTL result
+        console.warn(`⚠️  Rate limit exceeded for ${identifier}: ${count}/${maxRequests} (resets in ${ttl}s)`);
+        return false;
       }
 
-      return true; // Request allowed
-    } catch (error) {
-      console.error('Redis rate limit error:', error);
-      // On error, allow the request (fail open)
       return true;
+    } catch (error) {
+      console.error('❌ Redis checkRateLimit error:', error);
+      return true; // Fail open
     }
   }
 
-  /**
-   * Get current rate limit count
-   * @param {string} identifier - API key or IP address
-   * @returns {Promise<number>} Current request count
-   */
   async getRateLimitCount(identifier) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return 0;
     }
-
     try {
       const key = `ratelimit:${identifier}`;
-      const count = await this.execute(['GET', key]);
-      return parseInt(count) || 0;
+      const count = await this.client.get(key);
+      return parseInt(count || '0', 10);
     } catch (error) {
-      console.error('Redis get rate limit error:', error);
+      console.error('❌ Redis getRateLimitCount error:', error);
       return 0;
     }
   }
 
-  /**
-   * Reset rate limit for identifier
-   * @param {string} identifier - API key or IP address
-   */
   async resetRateLimit(identifier) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return;
     }
-
     try {
       const key = `ratelimit:${identifier}`;
-      await this.execute(['DEL', key]);
-      console.log(`Rate limit reset for ${identifier}`);
+      await this.client.del(key);
+      console.log(`🗑️  Reset rate limit for: ${identifier}`);
     } catch (error) {
-      console.error('Redis reset rate limit error:', error);
+      console.error('❌ Redis resetRateLimit error:', error);
     }
   }
 
-  // 🗄️ Cache Management
+  // 📦 Cache Management
   /**
-   * Set cache value with TTL
+   * Set cache with TTL
    * @param {string} key - Cache key
    * @param {any} value - Value to cache (will be JSON stringified)
-   * @param {number} ttl - Time to live in seconds (default: 1 hour)
-   * @returns {Promise<boolean>} Success status
+   * @param {number} ttl - Time to live in seconds (default: 300 = 5 min)
    */
-  async cacheSet(key, value, ttl = 3600) {
-    if (!this.enabled) {
+  async cacheSet(key, value, ttl = 300) {
+    if (!this.enabled || !this.client) {
       return false;
     }
-
     try {
       const cacheKey = `cache:${key}`;
       const serialized = JSON.stringify(value);
-      const result = await this.execute(['SET', cacheKey, serialized, 'EX', ttl]);
+      const result = await this.client.set(cacheKey, serialized, 'EX', ttl);
+      console.log(`💾 Cache SET: ${key} (TTL: ${ttl}s, size: ${serialized.length} bytes)`);
       return result === 'OK';
     } catch (error) {
-      console.error('Redis cacheSet error:', error);
+      console.error('❌ Redis cacheSet error:', error);
       return false;
     }
   }
 
   /**
-   * Get cache value
+   * Get cached value
    * @param {string} key - Cache key
-   * @returns {Promise<any|null>} Cached value or null if not found
+   * @returns {Promise<any|null>} Parsed value or null if not found/expired
    */
   async cacheGet(key) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return null;
     }
-
     try {
       const cacheKey = `cache:${key}`;
-      const cached = await this.execute(['GET', cacheKey]);
-
+      const cached = await this.client.get(cacheKey);
+      
       if (!cached) {
+        console.log(`❌ Cache MISS: ${key}`);
         return null;
       }
 
+      console.log(`✅ Cache HIT: ${key}`);
       return JSON.parse(cached);
     } catch (error) {
-      console.error('Redis cacheGet error:', error);
+      console.error('❌ Redis cacheGet error:', error);
       return null;
     }
   }
 
   /**
-   * Delete cache value
+   * Delete cached value
    * @param {string} key - Cache key
    */
   async cacheDelete(key) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return;
     }
-
     try {
       const cacheKey = `cache:${key}`;
-      await this.execute(['DEL', cacheKey]);
+      await this.client.del(cacheKey);
+      console.log(`🗑️  Cache DELETE: ${key}`);
     } catch (error) {
-      console.error('Redis cacheDelete error:', error);
+      console.error('❌ Redis cacheDelete error:', error);
     }
   }
 
@@ -266,43 +299,81 @@ class RedisClient {
    * @returns {Promise<boolean>} True if key exists
    */
   async cacheExists(key) {
-    if (!this.enabled) {
+    if (!this.enabled || !this.client) {
       return false;
     }
-
     try {
       const cacheKey = `cache:${key}`;
-      const exists = await this.execute(['EXISTS', cacheKey]);
+      const exists = await this.client.exists(cacheKey);
       return exists === 1;
     } catch (error) {
-      console.error('Redis cacheExists error:', error);
+      console.error('❌ Redis cacheExists error:', error);
       return false;
     }
   }
 
   /**
-   * Clear all cache with pattern
-   * @param {string} pattern - Key pattern (e.g., "contact:*")
+   * Clear all cache entries matching pattern
+   * @param {string} pattern - Pattern to match (e.g., "user:*")
+   * ⚠️  Use with caution in production - KEYS command can be slow
    */
   async cacheClearPattern(pattern) {
-    if (!this.enabled) {
-      return;
+    if (!this.enabled || !this.client) {
+      return 0;
     }
-
     try {
       const cachePattern = `cache:${pattern}`;
-      // Note: KEYS command should be used carefully in production
-      // For large datasets, consider using SCAN instead
-      const keys = await this.execute(['KEYS', cachePattern]);
-
-      if (keys && keys.length > 0) {
-        await this.execute(['DEL', ...keys]);
-        console.log(`🗑️  Cleared ${keys.length} cache entries matching pattern: ${pattern}`);
+      const keys = await this.client.keys(cachePattern);
+      
+      if (keys.length === 0) {
+        console.log(`ℹ️  No cache keys found matching: ${pattern}`);
+        return 0;
       }
+
+      await this.client.del(...keys);
+      console.log(`🗑️  Cleared ${keys.length} cache entries matching: ${pattern}`);
+      return keys.length;
     } catch (error) {
-      console.error('Redis cacheClearPattern error:', error);
+      console.error('❌ Redis cacheClearPattern error:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get Redis connection status
+   * @returns {Object} Status information
+   */
+  getStatus() {
+    return {
+      enabled: this.enabled,
+      connected: this.client ? this.client.status === 'ready' : false,
+      url: REDIS_URL ? REDIS_URL.replace(/redis[s]?:\/\/[^@]*@/, 'redis://***:***@') : 'not configured',
+    };
+  }
+
+  /**
+   * Close Redis connection gracefully
+   */
+  async disconnect() {
+    if (this.client) {
+      await this.client.quit();
+      console.log('👋 Redis connection closed');
     }
   }
 }
 
-module.exports = new RedisClient();
+// Create singleton instance
+const redisClient = new RedisClient();
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('📴 SIGTERM received, closing Redis connection...');
+  await redisClient.disconnect();
+});
+
+process.on('SIGINT', async () => {
+  console.log('📴 SIGINT received, closing Redis connection...');
+  await redisClient.disconnect();
+});
+
+module.exports = redisClient;
