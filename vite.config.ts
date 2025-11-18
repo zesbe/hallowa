@@ -46,6 +46,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: null, // Don't inject registerSW.js - we handle it manually in index.html
       includeAssets: ['favicon.ico', 'robots.txt', 'icon-192.png', 'icon-512.png'],
       manifest: {
         id: '/hallowa-app-v2024', // ✨ UNIQUE ID - Force browser treat as new PWA
