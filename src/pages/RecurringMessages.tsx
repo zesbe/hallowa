@@ -26,8 +26,12 @@ import {
   Timer,
   TrendingUp,
   CalendarClock,
-  HelpCircle
+  HelpCircle,
+  Zap,
+  BarChart3,
+  Shield
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRecurringMessages } from "@/hooks/useRecurringMessages";
 import { useDevices } from "@/hooks/useDevices";
@@ -92,6 +96,8 @@ export default function RecurringMessages() {
     delay_seconds: 5,
     randomize_delay: false,
     batch_size: 50,
+    delay_type: "auto" as 'auto' | 'manual' | 'adaptive',
+    pause_between_batches: 60,
   });
 
   const connectedDevices = devices.filter(d => d.status === 'connected');
@@ -120,6 +126,8 @@ export default function RecurringMessages() {
       delay_seconds: 5,
       randomize_delay: false,
       batch_size: 50,
+      delay_type: "auto",
+      pause_between_batches: 60,
     });
     setSelectedContacts([]);
     setManualNumbers([]);
@@ -180,6 +188,8 @@ export default function RecurringMessages() {
       delay_seconds: message.delay_seconds,
       randomize_delay: message.randomize_delay,
       batch_size: message.batch_size,
+      delay_type: message.delay_type || "auto",
+      pause_between_batches: message.pause_between_batches || 60,
     });
     setSelectedContacts(message.target_contacts || []);
     setDialogOpen(true);
