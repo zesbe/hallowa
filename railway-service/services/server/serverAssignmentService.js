@@ -352,6 +352,12 @@ class ServerAssignmentService {
    */
   async autoAssignDevice(device) {
     try {
+      // Validate device object
+      if (!device || !device.id || !device.user_id) {
+        logger.error('❌ Invalid device object for auto-assignment', { device });
+        return false;
+      }
+
       // Check if device is already assigned
       if (device.assigned_server_id) {
         return device.assigned_server_id === this.serverId;
@@ -366,12 +372,12 @@ class ServerAssignmentService {
       const bestServerId = await this.getBestAvailableServer();
 
       if (!bestServerId) {
-        logger.warn('⚠️ No available servers for assignment', {
+        logger.warn('⚠️ No available servers for assignment - assigning to current', {
           deviceId: device.id
         });
         // Fallback: assign to current server
-        await this.assignDeviceToCurrentServer(device.id, device.user_id);
-        return true;
+        const success = await this.assignDeviceToCurrentServer(device.id, device.user_id);
+        return success;
       }
 
       // If this server is the best choice, assign to it
@@ -380,8 +386,8 @@ class ServerAssignmentService {
           deviceId: device.id,
           serverId: this.serverId
         });
-        await this.assignDeviceToCurrentServer(device.id, device.user_id);
-        return true;
+        const success = await this.assignDeviceToCurrentServer(device.id, device.user_id);
+        return success;
       }
 
       // Another server is better - don't handle this device
@@ -396,8 +402,10 @@ class ServerAssignmentService {
     } catch (error) {
       logger.error('❌ Failed to auto-assign device', {
         deviceId: device?.id,
-        error: error.message
+        error: error.message,
+        stack: error.stack
       });
+      // Return false to skip this device instead of crashing
       return false;
     }
   }

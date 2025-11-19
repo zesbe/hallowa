@@ -344,27 +344,35 @@ async function checkDevices(activeSockets, connectWhatsApp) {
 
       // 🆕 MULTI-SERVER: Auto-assign unassigned devices with load balancing
       if (!device.assigned_server_id) {
-        logger.info('📋 Unassigned device detected - attempting auto-assignment', {
-          deviceId: device.id,
-          deviceName: device.device_name
-        });
-
-        const shouldHandle = await serverAssignmentService.autoAssignDevice(device);
-        
-        if (!shouldHandle) {
-          logger.info('📤 Device assigned to another server - skipping', {
+        try {
+          logger.info('📋 Unassigned device detected - attempting auto-assignment', {
             deviceId: device.id,
             deviceName: device.device_name
           });
+
+          const shouldHandle = await serverAssignmentService.autoAssignDevice(device);
+          
+          if (!shouldHandle) {
+            logger.info('📤 Device assigned to another server - skipping', {
+              deviceId: device.id,
+              deviceName: device.device_name
+            });
+            continue;
+          }
+
+          // Update device object with new assignment
+          device.assigned_server_id = serverAssignmentService.serverId;
+          logger.info('✅ Device assigned to this server', {
+            deviceId: device.id,
+            serverId: serverAssignmentService.serverId
+          });
+        } catch (assignError) {
+          logger.error('❌ Failed to auto-assign device - skipping', {
+            deviceId: device.id,
+            error: assignError.message
+          });
           continue;
         }
-
-        // Update device object with new assignment
-        device.assigned_server_id = serverAssignmentService.serverId;
-        logger.info('✅ Device assigned to this server', {
-          deviceId: device.id,
-          serverId: serverAssignmentService.serverId
-        });
       }
 
       // 🆕 MULTI-SERVER: Verify this server should handle this device
