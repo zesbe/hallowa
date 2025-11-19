@@ -261,12 +261,13 @@ class ServerAssignmentService {
         throw new Error('No valid statuses provided');
       }
 
-      // Query devices assigned to this server OR unassigned devices
+      // Query ONLY devices assigned to this server (no more unassigned devices)
+      // Unassigned devices will be handled by autoAssignDevice() first
       const { data: devices, error } = await supabase
         .from('devices')
         .select('*')
         .in('status', sanitizedStatuses)
-        .or(`assigned_server_id.eq.${this.serverId},assigned_server_id.is.null`);
+        .eq('assigned_server_id', this.serverId);
 
       if (error) {
         throw error;
@@ -333,17 +334,72 @@ class ServerAssignmentService {
   shouldHandleDevice(device) {
     if (!device) return false;
 
-    // Handle devices assigned to this server
+    // ONLY handle devices assigned to this server
+    // Unassigned devices must be explicitly assigned first to prevent conflicts
     if (device.assigned_server_id === this.serverId) {
       return true;
     }
 
-    // Handle unassigned devices (will auto-assign on connect)
-    if (!device.assigned_server_id) {
-      return true;
-    }
-
     return false;
+  }
+
+  /**
+   * 🆕 Auto-assign unassigned device to best available server
+   * Uses load balancing to distribute devices across servers
+   *
+   * @param {Object} device - Device object
+   * @returns {Promise<boolean>} True if device is now assigned to this server
+   */
+  async autoAssignDevice(device) {
+    try {
+      // Check if device is already assigned
+      if (device.assigned_server_id) {
+        return device.assigned_server_id === this.serverId;
+      }
+
+      logger.info('🔄 Auto-assigning unassigned device', {
+        deviceId: device.id,
+        deviceName: device.device_name
+      });
+
+      // Get best available server based on load
+      const bestServerId = await this.getBestAvailableServer();
+
+      if (!bestServerId) {
+        logger.warn('⚠️ No available servers for assignment', {
+          deviceId: device.id
+        });
+        // Fallback: assign to current server
+        await this.assignDeviceToCurrentServer(device.id, device.user_id);
+        return true;
+      }
+
+      // If this server is the best choice, assign to it
+      if (bestServerId === this.serverId) {
+        logger.info('✅ This server selected as best - assigning device', {
+          deviceId: device.id,
+          serverId: this.serverId
+        });
+        await this.assignDeviceToCurrentServer(device.id, device.user_id);
+        return true;
+      }
+
+      // Another server is better - don't handle this device
+      logger.info('📤 Another server is better suited for this device', {
+        deviceId: device.id,
+        bestServer: bestServerId,
+        currentServer: this.serverId
+      });
+
+      return false;
+
+    } catch (error) {
+      logger.error('❌ Failed to auto-assign device', {
+        deviceId: device?.id,
+        error: error.message
+      });
+      return false;
+    }
   }
 
   /**

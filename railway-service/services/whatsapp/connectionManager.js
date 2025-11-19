@@ -97,6 +97,15 @@ async function handleConnectionOpen(sock, device, isRecovery) {
   }
 
   try {
+    // 🆕 MULTI-SERVER: Ensure device is assigned to current server
+    if (!device.assigned_server_id) {
+      logger.info('🔄 Assigning newly connected device to this server', {
+        deviceId: device.id,
+        serverId: serverAssignmentService.serverId
+      });
+      await serverAssignmentService.assignDeviceToCurrentServer(device.id, device.user_id);
+    }
+
     // Get phone number
     const phoneNumber = sock.user?.id.split(':')[0];
     console.log('📞 Phone number:', phoneNumber);

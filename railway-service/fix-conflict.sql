@@ -3,6 +3,28 @@
 -- Jalankan di Supabase SQL Editor
 -- ============================================
 
+-- ⚠️ PENTING: Update sistem ke versi terbaru!
+-- Conflict error sudah DIPERBAIKI dengan auto-assignment system
+-- Restart SEMUA VPS server untuk apply perubahan:
+--   pm2 restart all
+
+-- ============================================
+-- PENJELASAN MASALAH & SOLUSI
+-- ============================================
+-- 
+-- MASALAH LAMA:
+-- - Multiple server mencoba connect ke device yang sama
+-- - Menyebabkan "Stream Errored (conflict)"
+-- 
+-- SOLUSI BARU (OTOMATIS):
+-- ✅ Device auto-assign ke server berdasarkan load
+-- ✅ Hanya assigned server yang boleh connect
+-- ✅ Load balancing otomatis berdasarkan capacity
+-- 
+-- Lihat: railway-service/MULTI_SERVER_LOAD_BALANCING.md
+--
+-- ============================================
+
 -- 1. CEK SEMUA DEVICE DAN STATUSNYA
 -- ===================================
 SELECT

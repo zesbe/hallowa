@@ -300,23 +300,41 @@ async function disconnectDevice(deviceId, sock, activeSockets) {
  */
 async function checkDevices(activeSockets, connectWhatsApp) {
   try {
-    // 🆕 MULTI-SERVER: Get only devices assigned to THIS server
-    const devices = await serverAssignmentService.getAssignedDevices(['connecting', 'connected']);
+    // 🆕 MULTI-SERVER: Get devices assigned to THIS server
+    const assignedDevices = await serverAssignmentService.getAssignedDevices(['connecting', 'connected']);
 
-    if (!devices || devices.length === 0) {
-      logger.debug('No devices assigned to this server', {
+    // 🆕 MULTI-SERVER: Also get unassigned devices for potential assignment
+    const { data: unassignedDevices, error: unassignedError } = await supabase
+      .from('devices')
+      .select('*')
+      .in('status', ['connecting', 'connected'])
+      .is('assigned_server_id', null);
+
+    if (unassignedError) {
+      logger.error('❌ Failed to fetch unassigned devices', {
+        error: unassignedError.message
+      });
+    }
+
+    // Combine assigned and unassigned devices
+    const allDevices = [...(assignedDevices || []), ...(unassignedDevices || [])];
+
+    if (!allDevices || allDevices.length === 0) {
+      logger.debug('No devices to check', {
         serverId: serverAssignmentService.serverId
       });
       return;
     }
 
-    logger.debug('Checking assigned devices', {
+    logger.debug('Checking devices', {
       serverId: serverAssignmentService.serverId,
-      deviceCount: devices.length
+      assignedCount: assignedDevices?.length || 0,
+      unassignedCount: unassignedDevices?.length || 0,
+      totalCount: allDevices.length
     });
 
     // Ensure sockets for devices that should be online
-    const needSockets = devices.filter(d => ['connecting', 'connected'].includes(d.status));
+    const needSockets = allDevices.filter(d => ['connecting', 'connected'].includes(d.status));
 
     for (const device of needSockets) {
       // 🔒 SECURITY: Validate device before processing
@@ -324,7 +342,32 @@ async function checkDevices(activeSockets, connectWhatsApp) {
         continue;
       }
 
-      // 🆕 MULTI-SERVER: Double-check if this server should handle this device
+      // 🆕 MULTI-SERVER: Auto-assign unassigned devices with load balancing
+      if (!device.assigned_server_id) {
+        logger.info('📋 Unassigned device detected - attempting auto-assignment', {
+          deviceId: device.id,
+          deviceName: device.device_name
+        });
+
+        const shouldHandle = await serverAssignmentService.autoAssignDevice(device);
+        
+        if (!shouldHandle) {
+          logger.info('📤 Device assigned to another server - skipping', {
+            deviceId: device.id,
+            deviceName: device.device_name
+          });
+          continue;
+        }
+
+        // Update device object with new assignment
+        device.assigned_server_id = serverAssignmentService.serverId;
+        logger.info('✅ Device assigned to this server', {
+          deviceId: device.id,
+          serverId: serverAssignmentService.serverId
+        });
+      }
+
+      // 🆕 MULTI-SERVER: Verify this server should handle this device
       if (!serverAssignmentService.shouldHandleDevice(device)) {
         logger.warn('⚠️ Device not assigned to this server - skipping', {
           deviceId: device.id,
@@ -354,7 +397,7 @@ async function checkDevices(activeSockets, connectWhatsApp) {
 
     // Disconnect devices that should be disconnected
     for (const [deviceId, sock] of activeSockets) {
-      const device = devices.find(d => d.id === deviceId);
+      const device = allDevices.find(d => d.id === deviceId);
 
       if (!device || device.status === 'disconnected') {
         await disconnectDevice(deviceId, sock, activeSockets);
@@ -364,7 +407,8 @@ async function checkDevices(activeSockets, connectWhatsApp) {
     logger.info('✅ Device check complete', {
       serverId: serverAssignmentService.serverId,
       activeConnections: activeSockets.size,
-      assignedDevices: devices.length
+      assignedDevices: assignedDevices?.length || 0,
+      processedDevices: allDevices.length
     });
 
   } catch (error) {
