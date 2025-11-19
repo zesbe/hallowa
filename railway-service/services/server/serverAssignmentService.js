@@ -97,12 +97,47 @@ class ServerAssignmentService {
           });
         }
       } else {
-        // Server not in database - this is expected
-        // Admin should add server via Admin Panel
-        logger.warn('⚠️ Server not registered in backend_servers table', {
-          serverId: this.serverId,
-          message: 'Admin should add this server via Admin Panel'
-        });
+        // Auto-register new server
+        const serverUrl = process.env.SERVER_URL || 
+                         process.env.RAILWAY_STATIC_URL || 
+                         `http://localhost:${process.env.PORT || 3000}`;
+        
+        const serverName = process.env.SERVER_NAME || 
+                          process.env.RAILWAY_SERVICE_NAME || 
+                          `Server-${this.serverId.substring(0, 8)}`;
+
+        const { error: insertError } = await supabase
+          .from('backend_servers')
+          .insert({
+            id: this.serverId,
+            server_name: serverName,
+            server_url: serverUrl,
+            server_type: process.env.SERVER_TYPE || 'vps',
+            region: process.env.SERVER_REGION || 'local',
+            max_capacity: parseInt(process.env.SERVER_MAX_CAPACITY || '50'),
+            is_active: true,
+            is_healthy: true,
+            priority: parseInt(process.env.SERVER_PRIORITY || '0'),
+            metadata: {
+              ...serverInfo,
+              auto_registered: true,
+              registered_at: new Date().toISOString()
+            }
+          });
+
+        if (insertError) {
+          logger.error('❌ Failed to auto-register server', {
+            serverId: this.serverId,
+            error: insertError.message,
+            hint: 'Check if SUPABASE_SERVICE_ROLE_KEY is set correctly'
+          });
+        } else {
+          logger.info('✅ Server auto-registered successfully', {
+            serverId: this.serverId,
+            serverName,
+            serverUrl
+          });
+        }
       }
     } catch (error) {
       logger.error('❌ Failed to register server', {
