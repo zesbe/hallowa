@@ -58,8 +58,32 @@ class ServerAssignmentService {
   async registerServer() {
     try {
       const serverInfo = serverIdentifier.getServerInfo();
+      const serverUrl = process.env.SERVER_URL || 
+                       process.env.RAILWAY_STATIC_URL || 
+                       `http://localhost:${process.env.PORT || 3000}`;
 
-      // Check if server already exists
+      // 🔧 FIX: Check for existing server by URL first (prevent duplicates)
+      const { data: existingByUrl, error: urlFetchError } = await supabase
+        .from('backend_servers')
+        .select('id, server_name, is_active')
+        .eq('server_url', serverUrl)
+        .maybeSingle();
+
+      if (urlFetchError && urlFetchError.code !== 'PGRST116') {
+        throw urlFetchError;
+      }
+
+      // If server exists with same URL but different ID, use that ID
+      if (existingByUrl && existingByUrl.id !== this.serverId) {
+        logger.warn('⚠️ Server URL already registered with different ID, using existing', {
+          currentId: this.serverId,
+          existingId: existingByUrl.id,
+          serverUrl
+        });
+        this.serverId = existingByUrl.id;
+      }
+
+      // Check if server already exists by ID
       const { data: existingServer, error: fetchError } = await supabase
         .from('backend_servers')
         .select('id, server_name, is_active')
@@ -76,6 +100,7 @@ class ServerAssignmentService {
           .from('backend_servers')
           .update({
             is_active: true,
+            server_url: serverUrl, // Update URL in case it changed
             last_health_check: new Date().toISOString(),
             metadata: {
               ...serverInfo,
@@ -93,15 +118,12 @@ class ServerAssignmentService {
         } else {
           logger.info('✅ Server registration updated', {
             serverId: this.serverId,
-            serverName: existingServer.server_name
+            serverName: existingServer.server_name,
+            serverUrl
           });
         }
       } else {
         // Auto-register new server
-        const serverUrl = process.env.SERVER_URL || 
-                         process.env.RAILWAY_STATIC_URL || 
-                         `http://localhost:${process.env.PORT || 3000}`;
-        
         const serverName = process.env.SERVER_NAME || 
                           process.env.RAILWAY_SERVICE_NAME || 
                           `Server-${this.serverId.substring(0, 8)}`;
@@ -139,12 +161,63 @@ class ServerAssignmentService {
           });
         }
       }
+
+      // 🧹 CLEANUP: Remove inactive duplicate servers with same URL
+      await this.cleanupDuplicateServers(serverUrl);
+
     } catch (error) {
       logger.error('❌ Failed to register server', {
         serverId: this.serverId,
         error: error.message
       });
       // Don't throw - service should continue even if registration fails
+    }
+  }
+
+  /**
+   * 🧹 Clean up duplicate inactive servers with same URL
+   * @param {string} serverUrl - Current server URL
+   */
+  async cleanupDuplicateServers(serverUrl) {
+    try {
+      const { data: duplicates, error } = await supabase
+        .from('backend_servers')
+        .select('id')
+        .eq('server_url', serverUrl)
+        .neq('id', this.serverId)
+        .eq('is_active', false);
+
+      if (error) {
+        logger.error('❌ Failed to fetch duplicate servers', {
+          error: error.message
+        });
+        return;
+      }
+
+      if (duplicates && duplicates.length > 0) {
+        const duplicateIds = duplicates.map(s => s.id);
+        
+        const { error: deleteError } = await supabase
+          .from('backend_servers')
+          .delete()
+          .in('id', duplicateIds);
+
+        if (deleteError) {
+          logger.error('❌ Failed to delete duplicate servers', {
+            error: deleteError.message
+          });
+        } else {
+          logger.info('🧹 Cleaned up duplicate inactive servers', {
+            serverUrl,
+            deletedCount: duplicates.length,
+            deletedIds: duplicateIds
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Failed to cleanup duplicate servers', {
+        error: error.message
+      });
     }
   }
 
