@@ -343,28 +343,29 @@ async function checkDevices(activeSockets, connectWhatsApp) {
       }
 
       // 🆕 MULTI-SERVER: Auto-assign unassigned devices with load balancing
-      if (!device.assigned_server_id) {
+      let assignedServerId = device.assigned_server_id;
+      
+      if (!assignedServerId) {
         try {
           logger.info('📋 Unassigned device detected - attempting auto-assignment', {
             deviceId: device.id,
             deviceName: device.device_name
           });
 
-          const shouldHandle = await serverAssignmentService.autoAssignDevice(device);
+          assignedServerId = await serverAssignmentService.autoAssignDevice(device);
           
-          if (!shouldHandle) {
-            logger.info('📤 Device assigned to another server - skipping', {
+          if (!assignedServerId) {
+            logger.warn('⚠️ Auto-assignment failed - skipping device', {
               deviceId: device.id,
               deviceName: device.device_name
             });
             continue;
           }
 
-          // Update device object with new assignment
-          device.assigned_server_id = serverAssignmentService.serverId;
-          logger.info('✅ Device assigned to this server', {
+          logger.info('✅ Device auto-assigned', {
             deviceId: device.id,
-            serverId: serverAssignmentService.serverId
+            assignedTo: assignedServerId,
+            isThisServer: assignedServerId === serverAssignmentService.serverId
           });
         } catch (assignError) {
           logger.error('❌ Failed to auto-assign device - skipping', {
@@ -376,11 +377,12 @@ async function checkDevices(activeSockets, connectWhatsApp) {
       }
 
       // 🆕 MULTI-SERVER: Verify this server should handle this device
-      if (!serverAssignmentService.shouldHandleDevice(device)) {
-        logger.warn('⚠️ Device not assigned to this server - skipping', {
+      // Use fresh assignedServerId instead of stale device object
+      if (assignedServerId !== serverAssignmentService.serverId) {
+        logger.info('📤 Device assigned to different server - skipping', {
           deviceId: device.id,
           deviceName: device.device_name,
-          assignedServer: device.assigned_server_id,
+          assignedServer: assignedServerId,
           currentServer: serverAssignmentService.serverId
         });
         continue;

@@ -343,24 +343,24 @@ class ServerAssignmentService {
     return false;
   }
 
-  /**
-   * 🆕 Auto-assign unassigned device to best available server
-   * Uses load balancing to distribute devices across servers
-   *
-   * @param {Object} device - Device object
-   * @returns {Promise<boolean>} True if device is now assigned to this server
-   */
+   /**
+    * 🆕 Auto-assign unassigned device to best available server
+    * Uses load balancing to distribute devices across servers
+    *
+    * @param {Object} device - Device object
+    * @returns {Promise<string|null>} Assigned server ID, or null if assignment failed
+    */
   async autoAssignDevice(device) {
     try {
       // Validate device object
       if (!device || !device.id || !device.user_id) {
         logger.error('❌ Invalid device object for auto-assignment', { device });
-        return false;
+        return null;
       }
 
       // Check if device is already assigned
       if (device.assigned_server_id) {
-        return device.assigned_server_id === this.serverId;
+        return device.assigned_server_id;
       }
 
       logger.info('🔄 Auto-assigning unassigned device', {
@@ -377,7 +377,7 @@ class ServerAssignmentService {
         });
         // Fallback: assign to current server
         const success = await this.assignDeviceToCurrentServer(device.id, device.user_id);
-        return success;
+        return success ? this.serverId : null;
       }
 
       // If this server is the best choice, assign to it
@@ -387,17 +387,52 @@ class ServerAssignmentService {
           serverId: this.serverId
         });
         const success = await this.assignDeviceToCurrentServer(device.id, device.user_id);
-        return success;
+        return success ? this.serverId : null;
       }
 
-      // Another server is better - don't handle this device
-      logger.info('📤 Another server is better suited for this device', {
+      // Another server is better - assign device to that server
+      logger.info('📤 Assigning device to best available server', {
         deviceId: device.id,
         bestServer: bestServerId,
         currentServer: this.serverId
       });
 
-      return false;
+      // Get best server details
+      const { data: bestServer } = await supabase
+        .from('backend_servers')
+        .select('*')
+        .eq('id', bestServerId)
+        .single();
+
+      // Assign device to best server
+      const { error } = await supabase
+        .from('devices')
+        .update({ 
+          assigned_server_id: bestServerId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', device.id);
+
+      if (error) {
+        logger.error('❌ Failed to assign device to best server', {
+          deviceId: device.id,
+          serverId: bestServerId,
+          error: error.message
+        });
+        return null;
+      }
+
+      // Log the assignment
+      await this.logAssignmentChange(device.id, device.assigned_server_id, bestServerId);
+
+      logger.info('✅ Device assigned to best server', {
+        deviceId: device.id,
+        serverId: bestServerId,
+        serverName: bestServer?.server_name
+      });
+      
+      // Return the assigned server ID so caller knows which server should handle it
+      return bestServerId;
 
     } catch (error) {
       logger.error('❌ Failed to auto-assign device', {
@@ -405,8 +440,8 @@ class ServerAssignmentService {
         error: error.message,
         stack: error.stack
       });
-      // Return false to skip this device instead of crashing
-      return false;
+      // Return null to skip this device instead of crashing
+      return null;
     }
   }
 
