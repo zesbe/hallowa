@@ -159,23 +159,18 @@ class ServerIdentifier {
         // Generate deterministic UUID v5 from service name
         this._serverId = this.generateUUIDv5(rawServerId);
       }
-      // Priority 4: Hostname → convert to UUID v5
-      else if (process.env.HOSTNAME) {
-        rawServerId = process.env.HOSTNAME;
-        source = 'HOSTNAME env var';
-        this._serverType = 'generic';
-
-        // Generate deterministic UUID v5 from hostname
-        this._serverId = this.generateUUIDv5(rawServerId);
-      }
-      // Priority 5: OS hostname → convert to UUID v5
+      // Priority 4: Use HOSTNAME + PORT for deterministic ID (multi-server on same machine)
       else {
         const os = require('os');
-        rawServerId = os.hostname();
-        source = 'OS hostname';
+        const hostname = process.env.HOSTNAME || os.hostname();
+        const port = process.env.PORT || '3000';
+        
+        // Combine hostname and port to create unique identifier
+        rawServerId = `${hostname}:${port}`;
+        source = 'hostname:port combination';
         this._serverType = 'generic';
 
-        // Generate deterministic UUID v5 from hostname
+        // Generate deterministic UUID v5 from hostname:port
         this._serverId = this.generateUUIDv5(rawServerId);
       }
 
