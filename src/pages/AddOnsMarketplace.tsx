@@ -29,9 +29,21 @@ export default function AddOnsMarketplace() {
     }
   };
 
-  const handlePurchase = async (addOnId: string) => {
+  const handlePurchase = async (addOnId: string, addOnName: string) => {
     try {
-      await purchaseAddOn({ addOnId });
+      const result = await purchaseAddOn({ addOnId });
+      
+      // Navigate to payment page
+      if (result?.payment && result?.pakasir) {
+        window.location.href = `/payment?type=addon&name=${encodeURIComponent(addOnName)}`;
+        // Store payment data in sessionStorage for payment page
+        sessionStorage.setItem('payment_data', JSON.stringify({
+          payment: result.payment,
+          pakasir: result.pakasir,
+          type: 'addon',
+          add_on_name: addOnName
+        }));
+      }
     } catch (error) {
       console.error('Purchase failed:', error);
     }
@@ -146,7 +158,7 @@ export default function AddOnsMarketplace() {
                           </Button>
                         ) : (
                           <Button
-                            onClick={() => handlePurchase(addon.id)}
+                            onClick={() => handlePurchase(addon.id, addon.name)}
                             disabled={isPurchasing}
                             className="gap-2"
                           >

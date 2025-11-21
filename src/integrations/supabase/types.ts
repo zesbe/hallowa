@@ -1514,6 +1514,42 @@ export type Database = {
           },
         ]
       }
+      plan_add_ons: {
+        Row: {
+          add_on_id: string
+          created_at: string
+          id: string
+          plan_id: string
+        }
+        Insert: {
+          add_on_id: string
+          created_at?: string
+          id?: string
+          plan_id: string
+        }
+        Update: {
+          add_on_id?: string
+          created_at?: string
+          id?: string
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_add_ons_add_on_id_fkey"
+            columns: ["add_on_id"]
+            isOneToOne: false
+            referencedRelation: "add_ons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_add_ons_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           created_at: string
@@ -1993,7 +2029,10 @@ export type Database = {
           id: string
           is_active: boolean | null
           metadata: Json | null
+          order_id: string | null
+          payment_completed_at: string | null
           payment_id: string | null
+          payment_status: string | null
           purchased_at: string | null
           user_id: string
         }
@@ -2003,7 +2042,10 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           metadata?: Json | null
+          order_id?: string | null
+          payment_completed_at?: string | null
           payment_id?: string | null
+          payment_status?: string | null
           purchased_at?: string | null
           user_id: string
         }
@@ -2013,7 +2055,10 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           metadata?: Json | null
+          order_id?: string | null
+          payment_completed_at?: string | null
           payment_id?: string | null
+          payment_status?: string | null
           purchased_at?: string | null
           user_id?: string
         }

@@ -82,9 +82,30 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // If payment completed, activate subscription
-    if (status === 'completed' && payment.plan_id) {
-      console.log('Activating subscription for user:', payment.user_id);
+    // If payment completed, activate subscription or add-on
+    if (status === 'completed') {
+      // Check if it's an add-on purchase
+      if (order_id.startsWith('ADDON')) {
+        console.log('Add-on purchase detected, activating...');
+        
+        // Activate user_add_on
+        const { error: addOnError } = await supabaseClient
+          .from('user_add_ons')
+          .update({
+            is_active: true,
+            payment_status: 'completed',
+            payment_completed_at: new Date().toISOString(),
+          })
+          .eq('order_id', order_id);
+
+        if (addOnError) {
+          console.error('Error activating add-on:', addOnError);
+        } else {
+          console.log('Add-on activated successfully');
+        }
+      } else if (payment.plan_id) {
+        // Regular plan subscription
+        console.log('Activating subscription for user:', payment.user_id);
 
       // Get plan details to know duration
       const { data: planData, error: planError } = await supabaseClient
@@ -148,9 +169,10 @@ serve(async (req) => {
         } else {
           console.log(`New subscription created, expires: ${newExpiresAt.toISOString()}`);
         }
+        }
       }
 
-      console.log('Subscription activated successfully');
+      console.log('Payment processing completed successfully');
     }
 
     return new Response(

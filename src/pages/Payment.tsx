@@ -15,7 +15,17 @@ export default function Payment() {
   const [checking, setChecking] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<string>("pending");
   
-  const { payment, pakasir } = location.state || {};
+  // Try to get payment data from location state or sessionStorage
+  let paymentData = location.state;
+  if (!paymentData) {
+    const stored = sessionStorage.getItem('payment_data');
+    if (stored) {
+      paymentData = JSON.parse(stored);
+      sessionStorage.removeItem('payment_data');
+    }
+  }
+  
+  const { payment, pakasir, type, add_on_name } = paymentData || {};
 
   useEffect(() => {
     if (!payment || !pakasir) {
@@ -49,7 +59,10 @@ export default function Payment() {
 
       if (data?.status === "completed") {
         setPaymentStatus("completed");
-        toast.success("Pembayaran berhasil! Subscription Anda telah aktif");
+        const successMsg = type === 'addon' 
+          ? `Add-on ${add_on_name} berhasil diaktifkan!` 
+          : 'Pembayaran berhasil! Subscription Anda telah aktif';
+        toast.success(successMsg);
         setTimeout(() => {
           navigate("/dashboard", { replace: true });
         }, 2000);
@@ -81,7 +94,9 @@ export default function Payment() {
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-bold">Pembayaran Berhasil!</h2>
             <p className="text-muted-foreground">
-              Subscription Anda telah aktif. Anda akan diarahkan ke dashboard...
+              {type === 'addon' 
+                ? `Add-on ${add_on_name} telah aktif! Anda akan diarahkan ke dashboard...`
+                : 'Subscription Anda telah aktif. Anda akan diarahkan ke dashboard...'}
             </p>
           </div>
         </div>

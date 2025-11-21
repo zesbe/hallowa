@@ -24,6 +24,7 @@ export interface UserAddOn {
   expires_at: string | null;
   is_active: boolean;
   payment_id: string | null;
+  payment_status: string;
   metadata: any;
   add_on?: AddOn;
 }
@@ -46,57 +47,83 @@ export function useAddOns() {
     },
   });
 
-  // Fetch user's purchased add-ons
+  // Fetch user's purchased add-ons + plan-included add-ons
   const { data: userAddOns, isLoading: isLoadingUserAddOns } = useQuery({
     queryKey: ['user-add-ons'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      // Get directly purchased add-ons
+      const { data: purchased, error: purchasedError } = await supabase
         .from('user_add_ons')
         .select('*, add_on:add_ons(*)')
         .eq('is_active', true)
+        .eq('payment_status', 'completed')
         .order('purchased_at', { ascending: false });
 
-      if (error) throw error;
-      return data as UserAddOn[];
+      if (purchasedError) throw purchasedError;
+
+      // Get plan-included add-ons
+      const { data: subscription } = await supabase
+        .from('user_subscriptions')
+        .select('plan_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
+
+      let planAddOns: any[] = [];
+      if (subscription?.plan_id) {
+        const { data: planAddOnsData } = await supabase
+          .from('plan_add_ons')
+          .select('add_on:add_ons(*)')
+          .eq('plan_id', subscription.plan_id);
+
+        if (planAddOnsData) {
+          planAddOns = planAddOnsData.map(pa => ({
+            id: `plan-${pa.add_on.id}`,
+            user_id: user.id,
+            add_on_id: pa.add_on.id,
+            is_active: true,
+            payment_status: 'included_in_plan',
+            add_on: pa.add_on,
+          }));
+        }
+      }
+
+      return [...(purchased || []), ...planAddOns] as UserAddOn[];
     },
   });
 
-  // Purchase add-on mutation
+  // Purchase add-on mutation - create payment transaction
   const purchaseMutation = useMutation({
-    mutationFn: async ({ addOnId, paymentId }: { addOnId: string; paymentId?: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data, error } = await supabase
-        .from('user_add_ons')
-        .insert({
-          user_id: user.id,
+    mutationFn: async ({ addOnId }: { addOnId: string }) => {
+      const { data, error } = await supabase.functions.invoke('addon-create-transaction', {
+        body: {
           add_on_id: addOnId,
-          payment_id: paymentId,
-          is_active: true,
-        })
-        .select()
-        .single();
+          payment_method: 'qris'
+        }
+      });
 
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-add-ons'] });
-      toast.success('Add-on berhasil dibeli!');
     },
     onError: (error) => {
       console.error('Purchase error:', error);
-      toast.error('Gagal membeli add-on');
+      toast.error('Gagal membuat transaksi pembayaran');
     },
   });
 
-  // Check if user has specific add-on
+  // Check if user has specific add-on (purchased OR plan-included)
   const hasAddOn = (slug: string): boolean => {
     if (!userAddOns) return false;
     return userAddOns.some(ua => 
       ua.add_on?.slug === slug && 
       ua.is_active && 
+      (ua.payment_status === 'completed' || ua.payment_status === 'included_in_plan') &&
       (!ua.expires_at || new Date(ua.expires_at) > new Date())
     );
   };
