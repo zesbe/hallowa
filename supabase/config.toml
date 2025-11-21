@@ -12,5 +12,14 @@ verify_jwt = true
 [functions.api-device-management]
 verify_jwt = false
 
+[functions.api-send-message]
+verify_jwt = false
+
+[functions.api-contacts]
+verify_jwt = false
+
+[functions.api-broadcasts]
+verify_jwt = false
+
 [functions.admin-broadcast-send]
 verify_jwt = true

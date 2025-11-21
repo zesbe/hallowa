@@ -166,17 +166,16 @@ serve(async (req) => {
       );
     }
 
-    // DELETE /devices/:id - Delete device
+    // DELETE /devices/:id - Delete device (secure with cleanup)
     if (method === 'DELETE' && path.length === 1) {
       const deviceId = path[0];
 
-      const { error } = await supabase
-        .from('devices')
-        .delete()
-        .eq('id', deviceId)
-        .eq('user_id', userId);
+      // Use delete_device_completely function for secure cleanup
+      const { data: result, error } = await supabase
+        .rpc('delete_device_completely', { p_device_id: deviceId });
 
       if (error) {
+        console.error('Error deleting device:', error);
         return new Response(
           JSON.stringify({ error: 'Device not found or delete failed' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -184,7 +183,11 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ success: true, message: 'Device deleted successfully' }),
+        JSON.stringify({ 
+          success: true, 
+          message: 'Device deleted successfully',
+          details: result 
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
