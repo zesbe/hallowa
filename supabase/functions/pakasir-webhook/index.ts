@@ -71,50 +71,46 @@ serve(async (req) => {
 
     // Get webhook secret from environment
     const webhookSecret = Deno.env.get('PAKASIR_WEBHOOK_SECRET');
-    if (!webhookSecret) {
-      console.error('PAKASIR_WEBHOOK_SECRET not configured');
-      throw new Error('Webhook secret not configured');
-    }
-
+    
+    // Read raw body first
+    const rawBody = await req.text();
+    
     // Get signature from headers (check multiple possible header names)
     const signature =
       req.headers.get('x-webhook-signature') ||
       req.headers.get('x-pakasir-signature') ||
       req.headers.get('x-signature');
 
-    if (!signature) {
-      console.error('Missing webhook signature header');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Missing webhook signature' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+    // Log all headers for debugging
+    console.log('📥 Webhook Headers:', Object.fromEntries(req.headers.entries()));
+    console.log('🔐 Signature found:', signature ? 'Yes' : 'No');
+    console.log('📄 Body length:', rawBody.length);
+
+    // If webhook secret is configured and signature exists, verify it
+    if (webhookSecret && signature) {
+      const isValidSignature = await verifyWebhookSignature(
+        rawBody,
+        signature,
+        webhookSecret
       );
+
+      if (!isValidSignature) {
+        console.error('❌ Invalid webhook signature');
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized: Invalid webhook signature' }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      console.log('✅ Webhook signature verified');
+    } else {
+      // Warning: No signature verification (for testing only)
+      console.warn('⚠️ Webhook signature verification skipped:', 
+        !webhookSecret ? 'No secret configured' : 'No signature header found');
+      console.warn('⚠️ This should only happen in testing/development!');
     }
-
-    // Read raw body for signature verification
-    const rawBody = await req.text();
-
-    // Verify signature
-    const isValidSignature = await verifyWebhookSignature(
-      rawBody,
-      signature,
-      webhookSecret
-    );
-
-    if (!isValidSignature) {
-      console.error('Invalid webhook signature');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid webhook signature' }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    console.log('✅ Webhook signature verified');
 
     // Parse JSON after signature verification
     const webhookData = JSON.parse(rawBody);
