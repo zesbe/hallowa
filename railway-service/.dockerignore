@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.env.*
+auth_sessions
+logs
+*.log
+.DS_Store
+docs
+*.md
+!package.json
+!package-lock.json
