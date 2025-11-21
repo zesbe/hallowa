@@ -230,36 +230,6 @@ export type Database = {
         }
         Relationships: []
       }
-      auto_replies: {
-        Row: {
-          created_at: string | null
-          id: string
-          is_active: boolean | null
-          keyword: string
-          reply: string
-          session_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id: string
-          is_active?: boolean | null
-          keyword: string
-          reply: string
-          session_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          keyword?: string
-          reply?: string
-          session_id?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       backend_servers: {
         Row: {
           allowed_ips: string[] | null
@@ -485,66 +455,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      communication_logs: {
-        Row: {
-          clicked_at: string | null
-          content: string
-          created_at: string | null
-          delivered_at: string | null
-          error_message: string | null
-          id: string
-          metadata: Json | null
-          opened_at: string | null
-          recipient_email: string | null
-          recipient_phone: string | null
-          sent_at: string | null
-          status: string
-          subject: string | null
-          template_id: string | null
-          type: string
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          clicked_at?: string | null
-          content: string
-          created_at?: string | null
-          delivered_at?: string | null
-          error_message?: string | null
-          id?: string
-          metadata?: Json | null
-          opened_at?: string | null
-          recipient_email?: string | null
-          recipient_phone?: string | null
-          sent_at?: string | null
-          status?: string
-          subject?: string | null
-          template_id?: string | null
-          type: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          clicked_at?: string | null
-          content?: string
-          created_at?: string | null
-          delivered_at?: string | null
-          error_message?: string | null
-          id?: string
-          metadata?: Json | null
-          opened_at?: string | null
-          recipient_email?: string | null
-          recipient_phone?: string | null
-          sent_at?: string | null
-          status?: string
-          subject?: string | null
-          template_id?: string | null
-          type?: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
       }
       contacts: {
         Row: {
@@ -1308,48 +1218,6 @@ export type Database = {
         }
         Relationships: []
       }
-      messages: {
-        Row: {
-          body: string
-          created_at: string | null
-          direction: string | null
-          from_number: string
-          id: string
-          is_read: boolean | null
-          message_id: string
-          session_id: string
-          timestamp: string
-          to_number: string
-          type: string | null
-        }
-        Insert: {
-          body: string
-          created_at?: string | null
-          direction?: string | null
-          from_number: string
-          id: string
-          is_read?: boolean | null
-          message_id: string
-          session_id: string
-          timestamp: string
-          to_number: string
-          type?: string | null
-        }
-        Update: {
-          body?: string
-          created_at?: string | null
-          direction?: string | null
-          from_number?: string
-          id?: string
-          is_read?: boolean | null
-          message_id?: string
-          session_id?: string
-          timestamp?: string
-          to_number?: string
-          type?: string | null
-        }
-        Relationships: []
-      }
       payments: {
         Row: {
           amount: number
@@ -1788,54 +1656,6 @@ export type Database = {
           },
         ]
       }
-      sessions: {
-        Row: {
-          auto_reply_enabled: boolean | null
-          created_at: string | null
-          device_name: string | null
-          id: string
-          last_active: string | null
-          pairing_code: string | null
-          phone_number: string | null
-          qr_code: string | null
-          session_id: string
-          status: string | null
-          updated_at: string | null
-          user_id: string
-          webhook_url: string | null
-        }
-        Insert: {
-          auto_reply_enabled?: boolean | null
-          created_at?: string | null
-          device_name?: string | null
-          id: string
-          last_active?: string | null
-          pairing_code?: string | null
-          phone_number?: string | null
-          qr_code?: string | null
-          session_id: string
-          status?: string | null
-          updated_at?: string | null
-          user_id: string
-          webhook_url?: string | null
-        }
-        Update: {
-          auto_reply_enabled?: boolean | null
-          created_at?: string | null
-          device_name?: string | null
-          id?: string
-          last_active?: string | null
-          pairing_code?: string | null
-          phone_number?: string | null
-          qr_code?: string | null
-          session_id?: string
-          status?: string | null
-          updated_at?: string | null
-          user_id?: string
-          webhook_url?: string | null
-        }
-        Relationships: []
-      }
       system_alerts: {
         Row: {
           alert_type: string
@@ -2068,36 +1888,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      users: {
-        Row: {
-          created_at: string | null
-          email: string
-          id: string
-          name: string
-          password: string
-          role: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          id: string
-          name: string
-          password: string
-          role?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          id?: string
-          name?: string
-          password?: string
-          role?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       webhooks: {
         Row: {
