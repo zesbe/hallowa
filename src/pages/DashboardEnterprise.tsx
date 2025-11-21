@@ -358,7 +358,7 @@ export const DashboardEnterprise = () => {
                 { icon: Send, label: "Send Broadcast", path: "/broadcast", color: "from-blue-500 to-indigo-600" },
                 { icon: Users, label: "Manage Contacts", path: "/contacts", color: "from-green-500 to-emerald-600" },
                 { icon: MessageSquare, label: "Message Templates", path: "/templates", color: "from-purple-500 to-pink-600" },
-                { icon: BarChart3, label: "View Analytics", path: "/dashboard", color: "from-orange-500 to-red-600" },
+                { icon: BarChart3, label: "View Analytics", path: "/analytics", color: "from-orange-500 to-red-600" },
               ].map((action, index) => (
                 <Button
                   key={action.path}
