@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAddOns } from '@/hooks/useAddOns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, ShoppingCart, Sparkles, Package, Zap } from 'lucide-react';
+import { Check, ShoppingCart, Sparkles, Package, Zap, Info } from 'lucide-react';
 
 export default function AddOnsMarketplace() {
+  const navigate = useNavigate();
   const { addOns, userAddOns, isLoading, purchaseAddOn, isPurchasing, hasAddOn } = useAddOns();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -151,21 +153,32 @@ export default function AddOnsMarketplace() {
                           </p>
                           <p className="text-xs text-muted-foreground">one-time payment</p>
                         </div>
-                        {isPurchased ? (
-                          <Button variant="outline" disabled className="gap-2">
-                            <Check className="w-4 h-4" />
-                            Owned
-                          </Button>
-                        ) : (
+                        <div className="flex gap-2">
                           <Button
-                            onClick={() => handlePurchase(addon.id, addon.name)}
-                            disabled={isPurchasing}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/addons/${addon.slug}`)}
                             className="gap-2"
                           >
-                            <ShoppingCart className="w-4 h-4" />
-                            Buy Now
+                            <Info className="w-4 h-4" />
+                            Details
                           </Button>
-                        )}
+                          {isPurchased ? (
+                            <Button variant="outline" disabled className="gap-2">
+                              <Check className="w-4 h-4" />
+                              Owned
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handlePurchase(addon.id, addon.name)}
+                              disabled={isPurchasing}
+                              className="gap-2"
+                            >
+                              <ShoppingCart className="w-4 h-4" />
+                              Buy
+                            </Button>
+                          )}
+                        </div>
                       </CardFooter>
                     </Card>
                   </div>

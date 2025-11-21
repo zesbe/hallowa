@@ -59,6 +59,35 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ✅ CHECK: User must own the Shopify Integration add-on
+    const { data: shopifyAddOn } = await supabaseAdmin
+      .from('add_ons')
+      .select('id')
+      .eq('slug', 'shopify-integration')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (shopifyAddOn) {
+      const { data: userAddOn } = await supabaseAdmin
+        .from('user_add_ons')
+        .select('id')
+        .eq('user_id', integration.user_id)
+        .eq('add_on_id', shopifyAddOn.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!userAddOn) {
+        console.error('User does not own Shopify Integration add-on:', integration.user_id);
+        return new Response(JSON.stringify({ 
+          error: 'Shopify Integration add-on required',
+          message: 'Please purchase the Shopify Integration add-on to use this feature'
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Verify webhook signature
     const webhookSecret = integration.config.webhook_secret;
     if (hmacHeader && webhookSecret) {

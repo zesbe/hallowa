@@ -62,6 +62,35 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ✅ CHECK: User must own the WooCommerce Integration add-on
+    const { data: wooAddOn } = await supabaseAdmin
+      .from('add_ons')
+      .select('id')
+      .eq('slug', 'woocommerce-integration')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (wooAddOn) {
+      const { data: userAddOn } = await supabaseAdmin
+        .from('user_add_ons')
+        .select('id')
+        .eq('user_id', integration.user_id)
+        .eq('add_on_id', wooAddOn.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!userAddOn) {
+        console.error('User does not own WooCommerce Integration add-on:', integration.user_id);
+        return new Response(JSON.stringify({ 
+          error: 'WooCommerce Integration add-on required',
+          message: 'Please purchase the WooCommerce Integration add-on to use this feature'
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Verify webhook signature
     const webhookSecret = integration.config.webhook_secret;
     if (signature && webhookSecret) {
