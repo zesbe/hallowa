@@ -436,6 +436,8 @@ const Landing = () => {
               <img
                 src="/icon-512.png"
                 alt="HalloWa Logo"
+                width="1024"
+                height="1024"
                 fetchPriority="high"
                 className="w-14 h-14 sm:w-16 sm:h-16 object-contain drop-shadow-lg hover:scale-105 transition-transform duration-300"
               />
@@ -737,6 +739,8 @@ const Landing = () => {
             <img
               src="/dashboard-preview.png"
               alt="HalloWa Dashboard"
+              width="1342"
+              height="637"
               className="w-full h-auto"
             />
             <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
@@ -1234,6 +1238,8 @@ const Landing = () => {
               <img
                 src="/icon-512.png"
                 alt="HalloWa Logo"
+                width="1024"
+                height="1024"
                 className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-lg hover:scale-105 transition-transform duration-300"
               />
               <span className="text-xl sm:text-2xl font-bold">HalloWa</span>
