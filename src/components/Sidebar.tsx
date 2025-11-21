@@ -39,16 +39,16 @@ const menuItems = [
 
 const messagingItems = [
   { icon: Send, label: "Broadcast", path: "/broadcast" },
+  { icon: Zap, label: "Kirim Cepat", path: "/quick-send" },
   { icon: Calendar, label: "Jadwal", path: "/scheduled" },
   { icon: Repeat, label: "Recurring", path: "/recurring", badge: "New" },
+  { icon: Send, label: "Auto Post", path: "/auto-post", badge: "New" },
 ];
 
 const featuresItems = [
   { icon: ShoppingCart, label: "Marketplace", path: "/marketplace" },
-  { icon: Zap, label: "Kirim Cepat", path: "/quick-send" },
   { icon: Bot, label: "Chatbot", path: "/chatbot" },
   { icon: Webhook, label: "Webhook", path: "/webhooks" },
-  { icon: Send, label: "Auto Post", path: "/auto-post", badge: "New" },
 ];
 
 const settingsItems = [
