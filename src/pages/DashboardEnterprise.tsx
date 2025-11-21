@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SubscriptionStatus } from "@/components/SubscriptionStatus";
 import { Progress } from "@/components/ui/progress";
+import { RecentActivity } from "@/components/RecentActivity";
 import {
   Smartphone,
   Users,
@@ -382,41 +383,9 @@ export const DashboardEnterprise = () => {
         </div>
 
         {/* Activity Feed */}
-        <Card className="border-0 shadow-lg animate-fade-in" style={{ animationDelay: '600ms' }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-primary animate-pulse" />
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[
-                { time: "2 minutes ago", event: "Device 'Business WhatsApp' connected", type: "success" },
-                { time: "15 minutes ago", event: "Broadcast sent to 150 contacts", type: "info" },
-                { time: "1 hour ago", event: "New template 'Welcome Message' created", type: "info" },
-                { time: "3 hours ago", event: "Device 'Support Line' disconnected", type: "warning" },
-              ].map((activity, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className={cn(
-                    "w-2 h-2 rounded-full mt-2",
-                    activity.type === "success" ? "bg-green-500 animate-pulse" :
-                    activity.type === "warning" ? "bg-yellow-500" :
-                    "bg-blue-500"
-                  )} />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{activity.event}</p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="animate-fade-in" style={{ animationDelay: '600ms' }}>
+          <RecentActivity />
+        </div>
       </div>
     </Layout>
   );
