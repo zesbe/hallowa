@@ -4,7 +4,7 @@ import { useAdminAddOns } from '@/hooks/useAddOns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -99,18 +99,18 @@ export default function AdminAddons() {
               Create and manage add-ons for marketplace
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
+          <Sheet open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <SheetTrigger asChild>
               <Button onClick={() => { setEditingAddon(null); reset(); }} className="gap-2">
                 <Plus className="w-4 h-4" />
                 New Add-on
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingAddon ? 'Edit' : 'Create'} Add-on</DialogTitle>
-                <DialogDescription>Manage add-on details and pricing</DialogDescription>
-              </DialogHeader>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>{editingAddon ? 'Edit' : 'Create'} Add-on</SheetTitle>
+                <SheetDescription>Manage add-on details and pricing</SheetDescription>
+              </SheetHeader>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -176,8 +176,8 @@ export default function AdminAddons() {
                   </Button>
                 </div>
               </form>
-            </DialogContent>
-          </Dialog>
+            </SheetContent>
+          </Sheet>
         </div>
 
         {/* Stats Cards */}
