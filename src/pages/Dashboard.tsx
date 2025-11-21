@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SubscriptionStatus } from "@/components/SubscriptionStatus";
+import { RecentActivity } from "@/components/RecentActivity";
 import {
   Smartphone,
   Users,
@@ -134,6 +135,9 @@ export const Dashboard = () => {
         </div>
 
         <SubscriptionStatus />
+
+        {/* Recent Activity */}
+        <RecentActivity />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Devices */}
