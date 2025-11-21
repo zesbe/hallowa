@@ -12,6 +12,7 @@ serve(async (req) => {
   }
 
   try {
+    // Create client with user auth for validation
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -22,15 +23,22 @@ serve(async (req) => {
       }
     );
 
+    // Validate user is authenticated
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) {
       throw new Error('Unauthorized');
     }
 
+    // Create service role client for database operations (bypasses RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     const { plan_id, payment_method = 'qris' } = await req.json();
 
-    // Get plan details
-    const { data: plan, error: planError } = await supabaseClient
+    // Get plan details using admin client
+    const { data: plan, error: planError } = await supabaseAdmin
       .from('plans')
       .select('*')
       .eq('id', plan_id)
@@ -78,8 +86,8 @@ serve(async (req) => {
 
     const payment = pakasirData.payment;
 
-    // Save payment to database
-    const { data: paymentRecord, error: paymentError } = await supabaseClient
+    // Save payment to database using admin client (bypasses RLS for security)
+    const { data: paymentRecord, error: paymentError } = await supabaseAdmin
       .from('payments')
       .insert({
         user_id: user.id,
