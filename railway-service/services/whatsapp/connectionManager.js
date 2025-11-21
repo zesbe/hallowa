@@ -503,11 +503,21 @@ async function connectWhatsApp(device, isRecovery = false, activeSockets) {
       }
     });
 
-    // Handle messages (optional - for future message handling)
+    // Handle incoming messages - AI Chatbot integration
+    const { processAIChatbotMessage } = require('../chatbot/aiChatbotHandler');
     sock.ev.on('messages.upsert', async ({ messages }) => {
-      const jid = messages[0]?.key?.remoteJid;
-      if (jid) {
-        console.log(`💬 [${deviceName}] Message from:`, jid);
+      for (const message of messages) {
+        const jid = message?.key?.remoteJid;
+        if (jid) {
+          console.log(`💬 [${deviceName}] Message from:`, jid);
+          
+          // Process with AI chatbot if user has the add-on
+          try {
+            await processAIChatbotMessage(message, device, sock);
+          } catch (error) {
+            console.error(`❌ [${deviceName}] AI chatbot error:`, error);
+          }
+        }
       }
     });
 

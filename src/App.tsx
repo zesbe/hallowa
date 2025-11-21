@@ -56,6 +56,8 @@ import AddOnsMarketplace from "./pages/AddOnsMarketplace";
 import Integrations from "./pages/Integrations";
 import AIChatbot from "./pages/AIChatbot";
 import AdminAddons from "./pages/admin/AdminAddons";
+import AddOnDetail from "./pages/AddOnDetail";
+import AdminAddOnUsage from "./pages/admin/AdminAddOnUsage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -99,6 +101,7 @@ const App = () => (
             <Route path="/payment" element={<ProtectedRoute requiredRole="user"><Payment /></ProtectedRoute>} />
             <Route path="/tutorial" element={<ProtectedRoute requiredRole="user"><Tutorial /></ProtectedRoute>} />
             <Route path="/addons" element={<ProtectedRoute requiredRole="user"><AddOnsMarketplace /></ProtectedRoute>} />
+            <Route path="/addons/:slug" element={<ProtectedRoute requiredRole="user"><AddOnDetail /></ProtectedRoute>} />
             <Route path="/integrations" element={<ProtectedRoute requiredRole="user"><Integrations /></ProtectedRoute>} />
             <Route path="/ai-chatbot" element={<ProtectedRoute requiredRole="user"><AIChatbot /></ProtectedRoute>} />
 
@@ -124,6 +127,7 @@ const App = () => (
             <Route path="/admin/reminders" element={<ProtectedRoute requiredRole="admin"><AdminReminders /></ProtectedRoute>} />
             <Route path="/admin/server-management" element={<ProtectedRoute requiredRole="admin"><AdminServerManagement /></ProtectedRoute>} />
             <Route path="/admin/addons" element={<ProtectedRoute requiredRole="admin"><AdminAddons /></ProtectedRoute>} />
+            <Route path="/admin/addon-usage" element={<ProtectedRoute requiredRole="admin"><AdminAddOnUsage /></ProtectedRoute>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
