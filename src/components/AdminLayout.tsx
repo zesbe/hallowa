@@ -20,7 +20,8 @@ import {
   Mail,
   Smartphone,
   Bell,
-  MessageSquare
+  MessageSquare,
+  ShoppingCart
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
@@ -62,6 +63,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: Bell, label: "Pengingat", path: "/admin/reminders" },
     { icon: Users, label: "Kelola User", path: "/admin/users" },
     { icon: CreditCard, label: "Kelola Paket", path: "/admin/plans" },
+    { icon: ShoppingCart, label: "Kelola Add-ons", path: "/admin/addons" },
     { icon: Video, label: "Kelola Tutorial", path: "/admin/tutorials" },
     { icon: FileText, label: "Konten Landing", path: "/admin/landing-content" },
     { icon: DollarSign, label: "Laporan Keuangan", path: "/admin/financial" },

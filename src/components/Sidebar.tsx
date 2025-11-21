@@ -46,8 +46,10 @@ const messagingItems = [
 ];
 
 const featuresItems = [
+  { icon: ShoppingCart, label: "Add-ons", path: "/addons", badge: "New" },
+  { icon: Zap, label: "Integrations", path: "/integrations", badge: "New" },
+  { icon: Bot, label: "AI Chatbot", path: "/ai-chatbot", badge: "New" },
   { icon: ShoppingCart, label: "Marketplace", path: "/marketplace" },
-  { icon: Bot, label: "Chatbot", path: "/chatbot" },
   { icon: Webhook, label: "Webhook", path: "/webhooks" },
 ];
 
