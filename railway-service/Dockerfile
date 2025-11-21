@@ -1,7 +1,14 @@
-# Production-ready Dockerfile for Railway Service
-FROM node:20-alpine
+# syntax=docker/dockerfile:1
 
-# Install dependencies for Baileys
+# Production-ready Dockerfile for Railway Service
+# Optimized for Docker layer caching
+
+# ==============================================================================
+# Stage 1: Dependencies - This layer is cached unless package*.json changes
+# ==============================================================================
+FROM node:20-alpine AS deps
+
+# Install build dependencies for native modules (Baileys)
 RUN apk add --no-cache \
     git \
     python3 \
@@ -12,17 +19,33 @@ RUN apk add --no-cache \
     pango-dev \
     giflib-dev
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy ONLY package files first (better cache utilization)
+COPY package.json package-lock.json ./
 
-# Install dependencies with production optimizations
-RUN npm ci --only=production --ignore-scripts && \
-    npm cache clean --force
+# Install dependencies with cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --only=production
 
-# Copy application files
+# ==============================================================================
+# Stage 2: Production - Only copy what's needed
+# ==============================================================================
+FROM node:20-alpine AS production
+
+# Install runtime dependencies only (no build tools)
+RUN apk add --no-cache \
+    cairo \
+    jpeg \
+    pango \
+    giflib
+
+WORKDIR /app
+
+# Copy node_modules from deps stage (cached)
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy application files (this layer changes frequently)
 COPY . .
 
 # Create directory for WhatsApp sessions
