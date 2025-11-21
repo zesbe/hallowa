@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      add_ons: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          metadata: Json | null
+          name: string
+          price: number
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name: string
+          price?: number
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name?: string
+          price?: number
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       admin_rate_limits: {
         Row: {
           admin_id: string
@@ -412,6 +454,115 @@ export type Database = {
           },
         ]
       }
+      chatbot_ai_rules: {
+        Row: {
+          ai_enabled: boolean | null
+          ai_model: string | null
+          ai_prompt: string | null
+          created_at: string | null
+          device_id: string
+          execution_count: number | null
+          id: string
+          is_active: boolean | null
+          last_executed_at: string | null
+          priority: number | null
+          response_template_id: string | null
+          response_text: string | null
+          response_type: string | null
+          rule_name: string
+          trigger_type: string
+          trigger_value: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_enabled?: boolean | null
+          ai_model?: string | null
+          ai_prompt?: string | null
+          created_at?: string | null
+          device_id: string
+          execution_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_executed_at?: string | null
+          priority?: number | null
+          response_template_id?: string | null
+          response_text?: string | null
+          response_type?: string | null
+          rule_name: string
+          trigger_type?: string
+          trigger_value?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_enabled?: boolean | null
+          ai_model?: string | null
+          ai_prompt?: string | null
+          created_at?: string | null
+          device_id?: string
+          execution_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_executed_at?: string | null
+          priority?: number | null
+          response_template_id?: string | null
+          response_text?: string | null
+          response_type?: string | null
+          rule_name?: string
+          trigger_type?: string
+          trigger_value?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_ai_rules_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatbot_conversations: {
+        Row: {
+          contact_phone: string
+          created_at: string | null
+          device_id: string
+          id: string
+          last_message_at: string | null
+          messages: Json | null
+          user_id: string
+        }
+        Insert: {
+          contact_phone: string
+          created_at?: string | null
+          device_id: string
+          id?: string
+          last_message_at?: string | null
+          messages?: Json | null
+          user_id: string
+        }
+        Update: {
+          contact_phone?: string
+          created_at?: string | null
+          device_id?: string
+          id?: string
+          last_message_at?: string | null
+          messages?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_conversations_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatbot_rules: {
         Row: {
           created_at: string
@@ -774,6 +925,92 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      integration_logs: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          error_message: string | null
+          id: string
+          integration_id: string
+          items_failed: number | null
+          items_processed: number | null
+          status: string
+          sync_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          integration_id: string
+          items_failed?: number | null
+          items_processed?: number | null
+          status: string
+          sync_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          integration_id?: string
+          items_failed?: number | null
+          items_processed?: number | null
+          status?: string
+          sync_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_logs_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integrations: {
+        Row: {
+          config: Json
+          created_at: string | null
+          error_message: string | null
+          id: string
+          integration_type: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          sync_status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          integration_type: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          sync_status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          integration_type?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          sync_status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       invoices: {
         Row: {
@@ -1749,6 +1986,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_add_ons: {
+        Row: {
+          add_on_id: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          metadata: Json | null
+          payment_id: string | null
+          purchased_at: string | null
+          user_id: string
+        }
+        Insert: {
+          add_on_id: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          payment_id?: string | null
+          purchased_at?: string | null
+          user_id: string
+        }
+        Update: {
+          add_on_id?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          payment_id?: string | null
+          purchased_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_add_ons_add_on_id_fkey"
+            columns: ["add_on_id"]
+            isOneToOne: false
+            referencedRelation: "add_ons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_add_ons_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_purchases: {
         Row: {
           created_at: string | null
@@ -2052,6 +2337,18 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      update_integration_sync: {
+        Args: {
+          p_error_message?: string
+          p_integration_id: string
+          p_status: string
+        }
+        Returns: undefined
+      }
+      user_has_add_on: {
+        Args: { p_add_on_slug: string; p_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
