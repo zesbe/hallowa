@@ -5,7 +5,7 @@ import { useAddOns } from '@/hooks/useAddOns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -52,7 +52,23 @@ export default function Integrations() {
   const { hasAddOn } = useAddOns();
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
   const { register, handleSubmit, reset } = useForm();
+
+  const handleOpenSheet = (type: string) => {
+    setScrollPosition(window.scrollY);
+    setSelectedType(type);
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseSheet = () => {
+    setIsDialogOpen(false);
+    setSelectedType(null);
+    reset();
+    setTimeout(() => {
+      window.scrollTo({ top: scrollPosition, behavior: 'instant' });
+    }, 0);
+  };
 
   const onSubmit = async (data: any) => {
     try {
@@ -62,8 +78,7 @@ export default function Integrations() {
           config: data,
           is_active: true,
         });
-        setIsDialogOpen(false);
-        reset();
+        handleCloseSheet();
       }
     } catch (error) {
       console.error('Failed to create integration:', error);
@@ -219,18 +234,18 @@ export default function Integrations() {
                       ) : isAlreadyConnected ? (
                         <Badge variant="secondary" className="w-full justify-center py-2">Connected</Badge>
                       ) : (
-                        <Dialog open={isDialogOpen && selectedType === integration.type} onOpenChange={setIsDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button className="w-full gap-2" onClick={() => setSelectedType(integration.type)}>
+                        <Sheet open={isDialogOpen && selectedType === integration.type} onOpenChange={(open) => !open && handleCloseSheet()}>
+                          <SheetTrigger asChild>
+                            <Button className="w-full gap-2" onClick={() => handleOpenSheet(integration.type)}>
                               <Plus className="w-4 h-4" />
                               Connect
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>Connect {integration.name}</DialogTitle>
-                              <DialogDescription>Enter your {integration.name} credentials</DialogDescription>
-                            </DialogHeader>
+                          </SheetTrigger>
+                          <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+                            <SheetHeader>
+                              <SheetTitle>Connect {integration.name}</SheetTitle>
+                              <SheetDescription>Enter your {integration.name} credentials</SheetDescription>
+                            </SheetHeader>
                             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                               {integration.fields.map((field) => (
                                 <div key={field} className="space-y-2">
@@ -247,8 +262,8 @@ export default function Integrations() {
                               ))}
                               <Button type="submit" className="w-full">Connect Integration</Button>
                             </form>
-                          </DialogContent>
-                        </Dialog>
+                          </SheetContent>
+                        </Sheet>
                       )}
                     </CardContent>
                   </Card>
