@@ -18,9 +18,25 @@ async function requestPairingCode(sock, device, phoneForPairing) {
   try {
     console.log(`🔐 [${device.device_name}] Requesting pairing code for: ${phoneForPairing}`);
 
-    // For Baileys v7+, use requestPairingCode if available
-    if (sock.requestPairingCode) {
-      const cleanPhone = phoneForPairing.replace(/[^\d]/g, '');
+    const cleanPhone = phoneForPairing.replace(/[^\d]/g, '');
+
+    // Wait for socket to be ready (authState.creds must be available)
+    let retries = 0;
+    while (!sock.authState?.creds && retries < 10) {
+      console.log(`⏳ [${device.device_name}] Waiting for authState.creds... (${retries + 1}/10)`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      retries++;
+    }
+
+    if (!sock.authState?.creds) {
+      console.error(`❌ [${device.device_name}] authState.creds not available after waiting`);
+      return false;
+    }
+
+    // Check if requestPairingCode method exists
+    if (typeof sock.requestPairingCode === 'function') {
+      console.log(`✅ [${device.device_name}] requestPairingCode method available - requesting code`);
+      
       const code = await sock.requestPairingCode(cleanPhone);
 
       if (code) {
@@ -48,10 +64,50 @@ async function requestPairingCode(sock, device, phoneForPairing) {
         return true;
       }
     } else {
-      console.log(`⚠️ [${device.device_name}] requestPairingCode not available, waiting for code in update...`);
+      console.error(`❌ [${device.device_name}] requestPairingCode method not available in Baileys`);
+      console.log(`📋 [${device.device_name}] Available socket methods:`, 
+        Object.keys(sock).filter(k => typeof sock[k] === 'function').slice(0, 20)
+      );
+      
+      // Update device with error
+      await supabase
+        .from('devices')
+        .update({
+          status: 'error',
+          qr_code: null,
+          pairing_code: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', device.id);
+
+      await logConnectionEvent({
+        deviceId: device.id,
+        userId: device.user_id,
+        eventType: 'pairing_code_error',
+        errorMessage: 'Pairing code not supported by current Baileys version',
+        details: { method: 'pairing' }
+      });
     }
   } catch (err) {
     console.error(`❌ [${device.device_name}] Error requesting pairing code:`, err);
+    
+    await supabase
+      .from('devices')
+      .update({
+        status: 'error',
+        qr_code: null,
+        pairing_code: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', device.id);
+
+    await logConnectionEvent({
+      deviceId: device.id,
+      userId: device.user_id,
+      eventType: 'pairing_code_error',
+      errorMessage: err.message || 'Failed to generate pairing code',
+      details: { method: 'pairing', error: err.toString() }
+    });
   }
 
   return false;
@@ -393,12 +449,26 @@ async function connectWhatsApp(device, isRecovery = false, activeSockets) {
     const phoneForPairing = deviceConfig?.phone_for_pairing;
 
     if (isPairingMode) {
-      logger.info(`🔑 [${deviceName}] Pairing mode enabled`);
+      logger.info(`🔑 [${deviceName}] Pairing mode enabled`, {
+        phoneForPairing,
+        hasValidSession
+      });
     }
 
     // Get latest WhatsApp Web version
     const { version } = await fetchLatestBaileysVersion();
     console.log(`📱 [${deviceName}] Using WA version: ${version.join('.')}`);
+
+    // 🔍 CHECK PAIRING SUPPORT
+    if (isPairingMode && !hasValidSession) {
+      const majorVersion = parseInt(version[0]);
+      if (majorVersion < 7) {
+        console.warn(`⚠️ [${deviceName}] Baileys version ${version.join('.')} might not support pairing codes`);
+        logger.warn(`Pairing code may not work with Baileys version ${version.join('.')}`);
+      } else {
+        console.log(`✅ [${deviceName}] Baileys version ${version.join('.')} supports pairing codes`);
+      }
+    }
 
     // Create WhatsApp socket
     const sock = makeWASocket({
@@ -442,8 +512,24 @@ async function connectWhatsApp(device, isRecovery = false, activeSockets) {
     activeSockets.set(deviceId, sock);
     console.log(`✅ [${deviceName}] Socket created`);
 
-    // Track if pairing code has been requested (prevent duplicates)
+    // 🆕 IMMEDIATE PAIRING CODE REQUEST
+    // Request pairing code RIGHT AWAY if in pairing mode (don't wait for connection.update)
     let pairingCodeRequested = false;
+    if (isPairingMode && phoneForPairing && !hasValidSession && !isRecovery) {
+      console.log(`🔐 [${deviceName}] Requesting pairing code immediately after socket creation...`);
+      pairingCodeRequested = true;
+      
+      // Give socket a moment to initialize, then request
+      setTimeout(async () => {
+        const success = await requestPairingCode(sock, device, phoneForPairing);
+        if (success) {
+          console.log(`✅ [${deviceName}] Pairing code requested successfully`);
+        } else {
+          console.warn(`⚠️ [${deviceName}] Initial pairing code request failed - will retry on connection.update`);
+          pairingCodeRequested = false; // Allow retry
+        }
+      }, 1000);
+    }
 
     // ==========================================
     // Handle connection updates
