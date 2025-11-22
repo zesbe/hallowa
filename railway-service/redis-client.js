@@ -10,6 +10,10 @@ const REDIS_URL = process.env.REDIS_URL;
 
 class RedisClient {
   constructor() {
+    this.isReady = false;
+    this.connectionAttempts = 0;
+    this.maxConnectionAttempts = 10;
+
     if (!REDIS_URL) {
       console.warn('⚠️  REDIS_URL not configured - Redis features will be disabled');
       console.warn('⚠️  Please add REDIS_URL to your environment variables');
@@ -23,18 +27,24 @@ class RedisClient {
       this.client = new Redis(REDIS_URL, {
         maxRetriesPerRequest: 3,
         enableReadyCheck: true,
+        connectTimeout: 10000, // 10 seconds
         retryStrategy: (times) => {
-          const delay = Math.min(times * 100, 3000);
-          console.log(`🔄 Retrying Redis connection in ${delay}ms...`);
+          this.connectionAttempts = times;
+
+          if (times > this.maxConnectionAttempts) {
+            console.error(`❌ Redis connection failed after ${this.maxConnectionAttempts} attempts`);
+            console.error('⚠️  Continuing without Redis - some features will be disabled');
+            return null; // Stop retrying
+          }
+
+          const delay = Math.min(times * 500, 5000); // Max 5 seconds
+          console.log(`🔄 Redis retry attempt ${times}/${this.maxConnectionAttempts} in ${delay}ms...`);
           return delay;
         },
         reconnectOnError: (err) => {
           console.error('❌ Redis error:', err.message);
-          const targetError = 'READONLY';
-          if (err.message.includes(targetError)) {
-            return true;
-          }
-          return false;
+          const targetErrors = ['READONLY', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
+          return targetErrors.some(error => err.message.includes(error));
         },
       });
 
@@ -44,18 +54,28 @@ class RedisClient {
 
       this.client.on('ready', () => {
         console.log('✅ Redis ready for operations');
+        this.isReady = true;
+        this.connectionAttempts = 0; // Reset counter on successful connection
       });
 
       this.client.on('error', (err) => {
         console.error('❌ Redis connection error:', err.message.replace(/redis[s]?:\/\/[^@]*@/, 'redis://***:***@'));
+        this.isReady = false;
       });
 
       this.client.on('close', () => {
         console.log('⚠️  Redis connection closed');
+        this.isReady = false;
       });
 
       this.client.on('reconnecting', () => {
         console.log('🔄 Redis reconnecting...');
+        this.isReady = false;
+      });
+
+      this.client.on('end', () => {
+        console.log('⚠️  Redis connection ended');
+        this.isReady = false;
       });
 
       this.enabled = true;
@@ -64,6 +84,42 @@ class RedisClient {
       this.enabled = false;
       this.client = null;
     }
+  }
+
+  /**
+   * Wait for Redis to be ready
+   * @param {number} timeout - Max time to wait in milliseconds (default: 30000 = 30s)
+   * @returns {Promise<boolean>} True if ready, false if timeout
+   */
+  async waitForReady(timeout = 30000) {
+    if (!this.enabled || !this.client) {
+      console.warn('⚠️  Redis not enabled, skipping wait');
+      return false;
+    }
+
+    if (this.isReady) {
+      console.log('✅ Redis already ready');
+      return true;
+    }
+
+    console.log(`⏳ Waiting for Redis connection (timeout: ${timeout}ms)...`);
+    const startTime = Date.now();
+
+    return new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+
+        if (this.isReady) {
+          clearInterval(checkInterval);
+          console.log(`✅ Redis ready after ${elapsed}ms`);
+          resolve(true);
+        } else if (elapsed >= timeout) {
+          clearInterval(checkInterval);
+          console.error(`❌ Redis connection timeout after ${timeout}ms`);
+          resolve(false);
+        }
+      }, 100); // Check every 100ms
+    });
   }
 
   // QR Code Management

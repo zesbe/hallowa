@@ -86,6 +86,98 @@ function createHTTPServer(activeSockets) {
       return;
     }
 
+    // Get WhatsApp groups endpoint
+    const groupsMatch = pathname.match(/^\/api\/groups\/(.+)$/);
+    if (groupsMatch && req.method === 'GET') {
+      const deviceId = groupsMatch[1];
+
+      try {
+        // Verify Authorization header
+        const authHeader = req.headers['authorization'];
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized - Missing or invalid Authorization header' }));
+          return;
+        }
+
+        const apiKey = authHeader.substring(7);
+
+        // Verify device exists and API key matches
+        const { data: device, error: deviceError } = await supabase
+          .from('devices')
+          .select('id, api_key, status')
+          .eq('id', deviceId)
+          .single();
+
+        if (deviceError || !device) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Device not found' }));
+          return;
+        }
+
+        if (device.api_key !== apiKey) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid API key' }));
+          return;
+        }
+
+        // Get socket for this device
+        const sock = activeSockets.get(deviceId);
+
+        if (!sock) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'Device not connected to WhatsApp',
+            groups: []
+          }));
+          return;
+        }
+
+        if (!sock.user) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'Device socket not authenticated',
+            groups: []
+          }));
+          return;
+        }
+
+        console.log(`📱 [API] Fetching groups for device: ${deviceId}`);
+
+        // Fetch groups from WhatsApp
+        const groups = await sock.groupFetchAllParticipating();
+
+        // Convert to array and format
+        const groupList = Object.values(groups).map(group => ({
+          id: group.id,
+          name: group.subject || 'Unnamed Group',
+          participants: group.participants?.length || 0,
+          desc: group.desc || '',
+          owner: group.owner || null,
+          creation: group.creation || null
+        }));
+
+        console.log(`✅ [API] Found ${groupList.length} groups for device: ${deviceId}`);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          groups: groupList,
+          total: groupList.length
+        }));
+        return;
+
+      } catch (error) {
+        console.error(`❌ [API] Error fetching groups for device ${deviceId}:`, error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: error.message || 'Failed to fetch groups',
+          groups: []
+        }));
+        return;
+      }
+    }
+
     // Send message endpoint
     if (pathname === '/send-message' && req.method === 'POST') {
       let body = '';
